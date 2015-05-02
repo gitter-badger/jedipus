@@ -38,12 +38,9 @@ artifacts {
 	archives sourcesJar
 }
 
-Properties properties = new Properties()
-properties.load(project.rootProject.file('local.props').newDataInputStream())
-
 bintray {
-    user = properties.getProperty("bintray.user")
-    key = properties.getProperty("bintray.apikey")
+    user = System.getenv("BINTRAY_USER")
+    key = System.getenv("BINTRAY_API_KEY")
 
     publications = ['mavenJava']
     
@@ -62,7 +59,7 @@ bintray {
             //vcsTag = '1.0'
             gpg {
                 sign = true
-                passphrase = properties.getProperty("bintray.gpgpassphrase")
+                passphrase = System.getenv("BINTRAY_GPG_PASSPHRASE")
             }           
         }
     }
