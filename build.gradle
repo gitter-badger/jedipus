@@ -1,0 +1,69 @@
+plugins {
+	id 'java'
+	id 'maven-publish'
+    id "com.jfrog.bintray" version "1.1"   
+}
+
+sourceCompatibility = 1.8
+
+group = 'com.fabahaba'
+version = '1.0'
+
+repositories {
+	maven { url "http://dl.bintray.com/jamespedwards42/libs"  }
+    jcenter()
+}
+
+dependencies {
+	compile 'com.fabahaba:Fava:0.4'
+	compile 'redis.clients:jedis:+'
+}
+
+task sourcesJar(type: Jar, dependsOn: classes) {
+	classifier = 'sources'
+	from sourceSets.main.allSource
+}
+    
+publishing {
+	publications {
+		mavenJava( MavenPublication ) {
+			from components.java
+			
+			artifact sourcesJar 
+        }
+    }
+}
+
+artifacts {
+	archives sourcesJar
+}
+
+Properties properties = new Properties()
+properties.load(project.rootProject.file('local.props').newDataInputStream())
+
+bintray {
+    user = properties.getProperty("bintray.user")
+    key = properties.getProperty("bintray.apikey")
+
+    publications = ['mavenJava']
+    
+    pkg {
+        repo = 'libs'
+        name = project.name
+        desc = 'Extends the executor and marries the command logic of Jedis'
+        // websiteUrl = 
+        vcsUrl = 'https://github.com/jamespedwards42/Jedipus'
+        issueTrackerUrl = 'https://github.com/jamespedwards42/Jedipus/issues'
+        licenses = ["Apache-2.0"]
+        publish = true
+        version {
+            name = project.version //Bintray logical version name
+            //desc =  Version-specific description'
+            //vcsTag = '1.0'
+            gpg {
+                sign = true
+                passphrase = properties.getProperty("bintray.gpgpassphrase")
+            }           
+        }
+    }
+}
