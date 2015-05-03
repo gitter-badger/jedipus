@@ -1,13 +1,27 @@
 plugins {
 	id 'java'
+	id 'pl.allegro.tech.build.axion-release' version '1.2.4'
 	id 'maven-publish'
     id "com.jfrog.bintray" version "1.1"   
 }
 
-sourceCompatibility = 1.8
+scmVersion {
+    tag {
+        prefix = 'jedipus'
+    }
+	
+	versionCreator 'versionWithBranch'
+    
+    hooks {
+        pre 'fileUpdate', [file: 'README.md', pattern: {v,p -> /jedipus:\d+.\d+.\d+/}, replacement: {v, p -> "jedipus:$v"}]
+        pre 'commit'
+    }
+}
 
-group = 'com.fabahaba'
-version = '1.1'
+project.group = 'com.fabahaba'
+project.version = scmVersion.version
+
+sourceCompatibility = 1.8
 
 repositories {
 	maven { url "http://dl.bintray.com/jamespedwards42/libs"  }
@@ -15,7 +29,7 @@ repositories {
 }
 
 dependencies {
-	compile 'com.fabahaba:Fava:0.7'
+	compile 'com.fabahaba:fava:0.7.+'
 	compile 'redis.clients:jedis:+'
 }
 
@@ -48,15 +62,15 @@ bintray {
         repo = 'libs'
         name = project.name
         desc = 'Extends the executor and marries the command logic of Jedis'
-        websiteUrl = 'https://github.com/jamespedwards42/Jedipus'
-        vcsUrl = 'https://github.com/jamespedwards42/Jedipus'
-        issueTrackerUrl = 'https://github.com/jamespedwards42/Jedipus/issues'
+        websiteUrl = 'https://github.com/jamespedwards42/jedipus'
+        vcsUrl = 'https://github.com/jamespedwards42/jedipus'
+        issueTrackerUrl = 'https://github.com/jamespedwards42/jedipus/issues'
         licenses = ["Apache-2.0"]
         publish = true
         version {
             name = project.version
             //desc =  ''
-            vcsTag = project.version
+            vcsTag = scmVersion.tag.prefix + '-' + project.version
             gpg {
                 sign = true
                 passphrase = "$System.env.BINTRAY_GPG_PASSPHRASE"
