@@ -7,7 +7,7 @@ plugins {
 sourceCompatibility = 1.8
 
 group = 'com.fabahaba'
-version = '1.0'
+version = '1.1'
 
 repositories {
 	maven { url "http://dl.bintray.com/jamespedwards42/libs"  }
@@ -15,7 +15,7 @@ repositories {
 }
 
 dependencies {
-	compile 'com.fabahaba:Fava:0.4'
+	compile 'com.fabahaba:Fava:0.5.1'
 	compile 'redis.clients:jedis:+'
 }
 
@@ -39,8 +39,8 @@ artifacts {
 }
 
 bintray {
-    user = System.getenv("BINTRAY_USER")
-    key = System.getenv("BINTRAY_API_KEY")
+    user = "$System.env.BINTRAY_USER"
+    key = "$System.env.BINTRAY_API_KEY"
 
     publications = ['mavenJava']
     
@@ -48,18 +48,18 @@ bintray {
         repo = 'libs'
         name = project.name
         desc = 'Extends the executor and marries the command logic of Jedis'
-        // websiteUrl = 
+        websiteUrl = 'https://github.com/jamespedwards42/Jedipus'
         vcsUrl = 'https://github.com/jamespedwards42/Jedipus'
         issueTrackerUrl = 'https://github.com/jamespedwards42/Jedipus/issues'
         licenses = ["Apache-2.0"]
         publish = true
         version {
-            name = project.version //Bintray logical version name
-            //desc =  Version-specific description'
-            //vcsTag = '1.0'
+            name = project.version
+            //desc =  ''
+            vcsTag = project.version
             gpg {
                 sign = true
-                passphrase = System.getenv("BINTRAY_GPG_PASSPHRASE")
+                passphrase = "$System.env.BINTRAY_GPG_PASSPHRASE"
             }           
         }
     }
