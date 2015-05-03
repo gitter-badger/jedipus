@@ -15,7 +15,7 @@ repositories {
 }
 
 dependencies {
-	compile 'com.fabahaba:Fava:0.5.1'
+	compile 'com.fabahaba:Fava:0.7'
 	compile 'redis.clients:jedis:+'
 }
 
