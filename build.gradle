@@ -30,8 +30,7 @@ project.version = scmVersion.version
 sourceCompatibility = 1.8
 
 repositories {
-	maven { url "http://dl.bintray.com/jamespedwards42/libs"  }
-    jcenter()
+	jcenter()
 }
 
 dependencies {
