@@ -1,7 +1,18 @@
 language: java
 
 jdk:
-  - oraclejdk8
+- oraclejdk8
 
 after_success:
-  - gradle bintrayUpload
+- gradle bintrayUpload
+
+deploy:
+  provider: s3
+  access_key_id:
+    secure: "Nsw8J2bO8deQRmSbP5n5qCgreCxui9f50YLf7rOyJR9nYdHStHFOahCxIoK0CyrOMSQzQXYeF3cipSsbyjzj+NDA8D0fgf+HDiTtu7PjvPBBfASzaWcewgADEsH+ca9tb9LtkcyMx0V+5x0o7KNjIo4tVybQQa5zvmjnqXKyF8o="
+  secret_access_key:
+    secure: BmMOoBnQlHsXULtBnWSr3t+noxR5L27ryoDtJM6Jy5pq6Uj7P5h6PM4iZAiskphcs7DSD7GffhIJqB7uLTxpyJLo2eLq2x3O+ZK4O3/PrDy4Iie3zik4EWQskkPdZr+oJC0b2w1lDU7aJutIveCcR2706hx+JM+2ZmhGsHadnhQ=
+  bucket: jedipus
+  acl: public_read
+  on:
+    repo: jamespedwards42/Jedipus
