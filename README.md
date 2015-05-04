@@ -4,7 +4,7 @@
 ####Gradle
 ```groovy
 repositories {
-   maven { url "http://dl.bintray.com/jamespedwards42/libs"  
+   maven { url "http://dl.bintray.com/jamespedwards42/libs"  }
 }
 
 dependencies {
