@@ -2,7 +2,8 @@ plugins {
 	id 'java'
 	id 'pl.allegro.tech.build.axion-release' version '1.2.4'
 	id 'maven-publish'
-    id "com.jfrog.bintray" version "1.1"   
+    id 'com.jfrog.bintray' version '1.1'
+    id 'findbugs'
 }
 
 scmVersion {
@@ -18,7 +19,7 @@ scmVersion {
 	versionCreator 'versionWithBranch'
     
     hooks {
-        pre 'fileUpdate', [file: 'README.md', pattern: {v,p -> /jedipus:\d+.\d+.\d+/}, replacement: {v, p -> "jedipus:$v"}]
+        pre 'fileUpdate', [file: 'README.md', pattern: {v,p -> /$project.name:\d+.\d+.\d+/}, replacement: {v, p -> "$project.name:$v"}]
         pre 'commit'
     }
 }
@@ -85,3 +86,18 @@ bintray {
 }
 
 bintrayUpload.onlyIf { !project.version.endsWith( 'SNAPSHOT' ) }
+
+findbugs {
+	toolVersion = "+"
+	reportsDir = file("$project.buildDir/findbugsReports")
+    effort = "max"
+    reportLevel = "medium"
+    ignoreFailures = true
+}
+
+tasks.withType(FindBugs) {
+    reports {
+        xml.enabled = false
+        html.enabled = true
+    }
+}

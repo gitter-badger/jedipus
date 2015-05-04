@@ -85,8 +85,8 @@ public class JedisSentinelPoolExecutor extends AbstractMutable implements JedisE
         return null;
     }
 
-    private Pool<Jedis> getPool() {
-        return sentinelPool == null ? initJedisSentinelPool() : sentinelPool;
+    private synchronized Pool<Jedis> getPool() {
+        return sentinelPool == null ? setSentinelPool( constructPool() ) : sentinelPool;
     }
 
     private Pool<Jedis> setSentinelPool(final Pool<Jedis> sentinelPool) {
@@ -97,10 +97,6 @@ public class JedisSentinelPoolExecutor extends AbstractMutable implements JedisE
             catching( e );
         }
         return this.sentinelPool = sentinelPool;
-    }
-
-    private synchronized Pool<Jedis> initJedisSentinelPool() {
-        return sentinelPool == null ? setSentinelPool( constructPool() ) : sentinelPool;
     }
 
     private Pool<Jedis> constructPool() {
