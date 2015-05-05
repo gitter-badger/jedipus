@@ -35,6 +35,6 @@ repositories {
 }
 
 dependencies {
-   compile 'com.fabahaba:jedipus:0.1.1'
+   compile 'com.fabahaba:jedipus:1.0.0'
 }
 ```
