@@ -3,24 +3,56 @@ package com.fabahaba.jedipus;
 import redis.clients.jedis.JedisPoolConfig;
 import redis.clients.jedis.Protocol;
 
+import java.util.Collection;
+
 public class ExtendedJedisPoolConfig extends JedisPoolConfig {
 
-  private int maxConsecutiveConnectionFailures = 5;
-  private int connectionTimeoutMillis = Protocol.DEFAULT_TIMEOUT;
-  private int socketTimeoutMillis = Protocol.DEFAULT_TIMEOUT;
+  public static final int DEFAULT_MAX_CONSECUTIVE_FAILURES = 5;
 
-  public ExtendedJedisPoolConfig() {
-    super();
+  private int connectionTimeoutMillis = Protocol.DEFAULT_TIMEOUT;
+  private int maxConsecutiveFailures = DEFAULT_MAX_CONSECUTIVE_FAILURES;
+
+  public static ExtendedJedisPoolConfig getDefaultConfig() {
+    return new ExtendedJedisPoolConfig();
   }
 
-  public ExtendedJedisPoolConfig withMaxConsecutiveConnectionFailures(
-      final int maxConsecutiveConnectionFailures) {
-    this.maxConsecutiveConnectionFailures = maxConsecutiveConnectionFailures;
+  public JedisSentinelPoolExecutor buildExecutor(final String masterName, final int db,
+      final Collection<String> sentinelHostPorts, final String password) {
+    return new JedisSentinelPoolExecutor(masterName, db, sentinelHostPorts, password, this);
+  }
+
+  public ExtendedJedisPoolConfig copy() {
+    return new ExtendedJedisPoolConfig().withBlockWhenExhausted(getBlockWhenExhausted())
+        .withEvictionPolicyClassName(getEvictionPolicyClassName()).withJmxEnabled(getJmxEnabled())
+        .withJmxNamePrefix(getJmxNamePrefix()).withLifo(getLifo()).withFairness(getFairness())
+        .withMaxIdle(getMaxIdle()).withMaxTotal(getMaxTotal())
+        .withMaxWaitMillis(getMaxWaitMillis())
+        .withMinEvictableIdleTimeMillis(getMinEvictableIdleTimeMillis()).withMinIdle(getMinIdle())
+        .withNumTestsPerEvictionRun(getNumTestsPerEvictionRun())
+        .withSoftMinEvictableIdleTimeMillis(getSoftMinEvictableIdleTimeMillis())
+        .withTestOnCreate(getTestOnCreate()).withTestOnBorrow(getTestOnBorrow())
+        .withTestOnReturn(getTestOnReturn()).withTestWhileIdle(getTestWhileIdle())
+        .withTimeBetweenEvictionRunsMillis(getTimeBetweenEvictionRunsMillis());
+  }
+
+  /**
+   *
+   * @param maxConsecutiveFailures The maximum number of consecutive failures before re-constructing
+   *        the underlying sentinel pool.
+   * @return
+   */
+  public ExtendedJedisPoolConfig withMaxConsecutiveFailures(final int maxConsecutiveFailures) {
+    this.maxConsecutiveFailures = maxConsecutiveFailures;
     return this;
   }
 
-  public int getMaxConsecutiveConnectionFailures() {
-    return maxConsecutiveConnectionFailures;
+  /**
+   * The maximum number of consecutive failures before re-constructing the underlying sentinel pool.
+   *
+   * @return {@code maxConsecutiveFailures}
+   */
+  public int getMaxConsecutiveFailures() {
+    return maxConsecutiveFailures;
   }
 
   public int getConnectionTimeoutMillis() {
@@ -29,15 +61,6 @@ public class ExtendedJedisPoolConfig extends JedisPoolConfig {
 
   public ExtendedJedisPoolConfig withConnectionTimeoutMillis(final int connectionTimeoutMillis) {
     this.connectionTimeoutMillis = connectionTimeoutMillis;
-    return this;
-  }
-
-  public int getSocketTimeoutMillis() {
-    return socketTimeoutMillis;
-  }
-
-  public ExtendedJedisPoolConfig withSocketTimeoutMillis(final int socketTimeoutMillis) {
-    this.socketTimeoutMillis = socketTimeoutMillis;
     return this;
   }
 
@@ -61,6 +84,11 @@ public class ExtendedJedisPoolConfig extends JedisPoolConfig {
     return this;
   }
 
+  public ExtendedJedisPoolConfig withFairness(final boolean fairness) {
+    setFairness(fairness);
+    return this;
+  }
+
   public ExtendedJedisPoolConfig withMaxWaitMillis(final long maxWaitMillis) {
     setMaxWaitMillis(maxWaitMillis);
     return this;
@@ -80,6 +108,11 @@ public class ExtendedJedisPoolConfig extends JedisPoolConfig {
 
   public ExtendedJedisPoolConfig withNumTestsPerEvictionRun(final int numTestsPerEvictionRun) {
     setNumTestsPerEvictionRun(numTestsPerEvictionRun);
+    return this;
+  }
+
+  public ExtendedJedisPoolConfig withTestOnCreate(final boolean testOnCreate) {
+    setTestOnCreate(testOnCreate);
     return this;
   }
 
