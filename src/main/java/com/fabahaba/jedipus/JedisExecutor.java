@@ -3,14 +3,10 @@ package com.fabahaba.jedipus;
 import com.fabahaba.fava.func.Retryable;
 
 import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPubSub;
 import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.exceptions.JedisConnectionException;
 
 import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -114,8 +110,4 @@ public interface JedisExecutor extends Retryable {
     }
   }
 
-  default Future<?> addTopicListener(final ExecutorService executorService,
-      final JedisPubSub subscriber, final ReentrantLock subscribeLock, final String[] topics) {
-    return executorService.submit(new RedisSubscribeJob(this, subscriber, subscribeLock, topics));
-  }
 }

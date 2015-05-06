@@ -1,6 +1,7 @@
 package com.fabahaba.jedipus;
 
 import com.fabahaba.fava.logging.Loggable;
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.Sets;
 
 import redis.clients.jedis.Jedis;
@@ -174,8 +175,8 @@ public class JedisSentinelPoolExecutor implements JedisExecutor, Loggable {
 
   @Override
   public String toString() {
-    return "JedisSentinelPoolExecutor [masterName=" + this.masterName + ", db=" + this.db
-        + ", sentinelHostPorts=" + this.sentinelHostPorts + ", poolConfig=" + this.poolConfig
-        + ", sentinelPool=" + this.sentinelPool + "]";
+    return MoreObjects.toStringHelper(JedisSentinelPoolExecutor.class)
+        .add("masterName", masterName).add("db", db).add("sentinelHostPorts", sentinelHostPorts)
+        .add("poolConfig", poolConfig).add("sentinelPool", sentinelPool).toString();
   }
 }
