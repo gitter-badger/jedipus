@@ -109,5 +109,4 @@ public interface JedisExecutor extends Retryable {
       return Optional.empty();
     }
   }
-
 }

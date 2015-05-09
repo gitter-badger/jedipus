@@ -2,7 +2,7 @@ package com.fabahaba.jedipus;
 
 import com.fabahaba.fava.logging.Loggable;
 import com.google.common.base.MoreObjects;
-import com.google.common.collect.Sets;
+import com.google.common.collect.ImmutableSet;
 
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisSentinelPool;
@@ -37,7 +37,7 @@ public class JedisSentinelPoolExecutor implements JedisExecutor, Loggable {
       final ExtendedJedisPoolConfig poolConfig) {
     this.masterName = masterName;
     this.db = db;
-    this.sentinelHostPorts = Sets.newHashSet(sentinelHostPorts);
+    this.sentinelHostPorts = ImmutableSet.copyOf(sentinelHostPorts);
     this.password = password;
     this.poolConfig =
         poolConfig == null ? ExtendedJedisPoolConfig.getDefaultConfig() : poolConfig.copy();
