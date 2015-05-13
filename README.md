@@ -1,4 +1,4 @@
-#Jedipus [![Build Status](https://travis-ci.org/jamespedwards42/jedipus.svg?branch=master)](https://travis-ci.org/jamespedwards42/jedipus) [![JCenter](https://api.bintray.com/packages/jamespedwards42/libs/jedipus/images/download.svg) ](https://bintray.com/jamespedwards42/libs/jedipus/_latestVersion)
+#Jedipus [![Build Status](https://travis-ci.org/jamespedwards42/jedipus.svg?branch=master)](https://travis-ci.org/jamespedwards42/jedipus) [![JCenter](https://api.bintray.com/packages/jamespedwards42/libs/jedipus/images/download.svg) ](https://bintray.com/jamespedwards42/libs/jedipus/_latestVersion) [![License](http://img.shields.io/badge/license-Apache--2-blue.svg?style=flat) ](http://www.apache.org/licenses/LICENSE-2.0)
 
 >Jedipus provides a [JedisSentinelPoolExecutor](/jamespedwards42/jedipus/blob/master/src/main/java/com/fabahaba/jedipus/JedisSentinelPoolExecutor.java) which manages the state of a [JedisPool](https://github.com/xetorthio/jedis/wiki/Getting-started#basic-usage-example) and allows you to submit lambdas against [Jedis](https://github.com/xetorthio/jedis) clients.
 
