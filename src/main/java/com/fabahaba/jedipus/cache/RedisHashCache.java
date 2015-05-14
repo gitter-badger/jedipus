@@ -167,9 +167,12 @@ public class RedisHashCache<F, V> implements Retryable {
           redisPoolExecutor.applyJedisOptional(jedis -> jedis.hmget(mapName, fieldKeys),
               numCacheLoaderRetries).orElse(null);
 
-      if (response == null)
-        return StreamSupport.stream(fields.spliterator(), false).collect(
-            Collectors.toMap(f -> f, f -> Optional.empty()));
+      if (response == null) {
+        final Map<F, Optional<V>> resultMap =
+            StreamSupport.stream(fields.spliterator(), false).collect(
+                Collectors.toMap(f -> f, f -> Optional.empty()));
+        return resultMap;
+      }
 
       final Map<F, Optional<V>> resultMap = new HashMap<>();
       int responseIndex = 0;
