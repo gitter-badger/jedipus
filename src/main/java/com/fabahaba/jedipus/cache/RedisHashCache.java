@@ -20,7 +20,6 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
-import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 public class RedisHashCache<F, V> implements Retryable {
@@ -167,16 +166,16 @@ public class RedisHashCache<F, V> implements Retryable {
           redisPoolExecutor.applyJedisOptional(jedis -> jedis.hmget(mapName, fieldKeys),
               numCacheLoaderRetries).orElse(null);
 
+      final Map<F, Optional<V>> resultMap = new HashMap<>();
+
       if (response == null) {
-        final Map<F, Optional<V>> resultMap =
-            StreamSupport.stream(fields.spliterator(), false).collect(
-                Collectors.toMap(f -> f, f -> Optional.empty()));
+        for (final F field : fields) {
+          resultMap.put(field, Optional.empty());
+        }
         return resultMap;
       }
 
-      final Map<F, Optional<V>> resultMap = new HashMap<>();
       int responseIndex = 0;
-
       for (final F field : fields) {
         final String responseJson = response.get(responseIndex++);
         if (responseJson != null) {
