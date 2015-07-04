@@ -47,130 +47,102 @@ public class JedisSentinelPoolExecutor implements JedisExecutor, Loggable {
 
   @Override
   public void acceptJedis(final Consumer<Jedis> jedisConsumer) {
-    long readStamp = sentinelPoolLock.readLock();
+    Jedis jedis = null;
+    long readStamp = ensurePoolExists();
     try {
-      Jedis jedis = null;
-      readStamp = ensurePoolExists(readStamp);
-      try {
-        jedis = sentinelPool.getResource();
-        jedisConsumer.accept(jedis);
-      } catch (final JedisException je) {
-        readStamp = handleConnectionException(readStamp, jedis);
-        jedis = null;
-        throw je;
-      } finally {
-        returnJedis(jedis);
-      }
+      jedis = sentinelPool.getResource();
+      jedisConsumer.accept(jedis);
+    } catch (final JedisException je) {
+      readStamp = handleConnectionException(readStamp, jedis);
+      jedis = null;
+      throw je;
     } finally {
-      sentinelPoolLock.unlock(readStamp);
+      readStamp = returnJedis(readStamp, jedis);
+      sentinelPoolLock.unlockRead(readStamp);
     }
   }
 
   @Override
   public <T> T applyJedis(final Function<Jedis, T> jedisFunc) {
-    long readStamp = sentinelPoolLock.readLock();
+    Jedis jedis = null;
+    long readStamp = ensurePoolExists();
     try {
-      Jedis jedis = null;
-      readStamp = ensurePoolExists(readStamp);
-      try {
-        jedis = sentinelPool.getResource();
-        return jedisFunc.apply(jedis);
-      } catch (final JedisException je) {
-        readStamp = handleConnectionException(readStamp, jedis);
-        jedis = null;
-        throw je;
-      } finally {
-        returnJedis(jedis);
-      }
+      jedis = sentinelPool.getResource();
+      return jedisFunc.apply(jedis);
+    } catch (final JedisException je) {
+      readStamp = handleConnectionException(readStamp, jedis);
+      jedis = null;
+      throw je;
     } finally {
-      sentinelPoolLock.unlock(readStamp);
+      readStamp = returnJedis(readStamp, jedis);
+      sentinelPoolLock.unlockRead(readStamp);
     }
   }
 
-  private void returnJedis(final Jedis jedis) {
+  private long returnJedis(final long readStamp, final Jedis jedis) {
     try {
-      if (jedis != null) {
-        sentinelPool.returnResource(jedis);
-        numConsecutiveFailures = 0;
-      }
+      sentinelPool.returnResourceObject(jedis);
+      numConsecutiveFailures = 0;
+      return readStamp;
     } catch (final JedisException je) {
-      catching(je);
+      return handleConnectionException(readStamp, jedis);
     }
   }
 
-  private long handleConnectionException(final long lockStamp, final Jedis brokenJedis) {
+  private long handleConnectionException(final long readStamp, final Jedis brokenJedis) {
     try {
-      if (brokenJedis != null) {
-        sentinelPool.returnBrokenResource(brokenJedis);
-      }
+      sentinelPool.returnBrokenResource(brokenJedis);
     } catch (final JedisException je) {
       catching(je);
     }
 
-    return tryToReInitPool(lockStamp);
+    return tryToReInitPool(readStamp);
   }
 
   private Pool<Jedis> constructPool() {
-    return new JedisSentinelPool(masterName, sentinelHostPorts, poolConfig,
-        poolConfig.getConnectionTimeoutMillis(), password, db);
+    try {
+      return new JedisSentinelPool(masterName, sentinelHostPorts, poolConfig,
+          poolConfig.getConnectionTimeoutMillis(), password, db);
+    } catch (final Throwable t) {
+      error(t);
+      return null;
+    }
   }
 
-  private long ensurePoolExists(final long lockStamp) {
+  private long ensurePoolExists() {
+    final long readStamp = sentinelPoolLock.readLock();
     if (sentinelPool != null)
-      return lockStamp;
+      return readStamp;
 
-    long stamp = sentinelPoolLock.tryConvertToWriteLock(lockStamp);
-    if (stamp == 0) {
-      if (sentinelPoolLock.isReadLocked()) {
-        sentinelPoolLock.unlockRead(lockStamp);
-      }
-
-      if (sentinelPool == null) {
-        stamp = sentinelPoolLock.writeLock();
-      } else
-        return sentinelPoolLock.readLock();
-    }
-
+    sentinelPoolLock.unlockRead(readStamp);
+    final long writeStamp = sentinelPoolLock.writeLock();
     try {
       if (sentinelPool == null) {
         sentinelPool = constructPool();
       }
     } finally {
-      stamp = sentinelPoolLock.tryConvertToReadLock(stamp);
+      sentinelPoolLock.unlockWrite(writeStamp);
     }
-    return stamp;
+    return sentinelPoolLock.readLock();
   }
 
-  private long tryToReInitPool(final long lockStamp) {
+  private long tryToReInitPool(final long readStamp) {
     final Pool<Jedis> previouslyKnownPool = sentinelPool;
 
-    long stamp = sentinelPoolLock.tryConvertToWriteLock(lockStamp);
-    if (stamp == 0) {
-      if (sentinelPoolLock.isReadLocked()) {
-        sentinelPoolLock.unlockRead(lockStamp);
-      }
-
-      final Pool<Jedis> currentPool = sentinelPool;
-      if (currentPool != null && currentPool.equals(previouslyKnownPool)) {
-        stamp = sentinelPoolLock.writeLock();
-      } else
-        return sentinelPoolLock.readLock();
-    }
-
+    sentinelPoolLock.unlockRead(readStamp);
+    final long writeStamp = sentinelPoolLock.writeLock();
     try {
-      if (sentinelPool.equals(previouslyKnownPool)) {
-        if (++numConsecutiveFailures > poolConfig.getMaxConsecutiveFailures()) {
-          sentinelPool = null;
+      if (sentinelPool == null || sentinelPool.equals(previouslyKnownPool)
+          && ++numConsecutiveFailures > poolConfig.getMaxConsecutiveFailures()) {
+        sentinelPool = constructPool();
+        if (sentinelPool != null) {
           numConsecutiveFailures = 0;
-          stamp = ensurePoolExists(stamp);
         }
       }
     } finally {
-      if (sentinelPoolLock.isWriteLocked()) {
-        stamp = sentinelPoolLock.tryConvertToReadLock(stamp);
-      }
+      sentinelPoolLock.unlockWrite(writeStamp);
     }
-    return stamp;
+    return sentinelPoolLock.readLock();
   }
 
   @Override

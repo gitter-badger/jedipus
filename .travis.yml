@@ -3,5 +3,8 @@ language: java
 jdk:
 - oraclejdk8
 
+script:
+   - if [ "$TRAVIS_BRANCH" == "master" ]; then gradle check; fi
+
 after_success:
-- gradle bintrayUpload
+   - test $TRAVIS_PULL_REQUEST == "false" && test $TRAVIS_BRANCH == "master" && gradle bintrayUpload
