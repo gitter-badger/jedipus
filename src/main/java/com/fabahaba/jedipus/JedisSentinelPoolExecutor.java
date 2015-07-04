@@ -58,7 +58,9 @@ public class JedisSentinelPoolExecutor implements JedisExecutor, Loggable {
       throw je;
     } finally {
       readStamp = returnJedis(readStamp, jedis);
-      sentinelPoolLock.unlockRead(readStamp);
+      if (readStamp > 0) {
+        sentinelPoolLock.unlockRead(readStamp);
+      }
     }
   }
 
@@ -75,7 +77,9 @@ public class JedisSentinelPoolExecutor implements JedisExecutor, Loggable {
       throw je;
     } finally {
       readStamp = returnJedis(readStamp, jedis);
-      sentinelPoolLock.unlockRead(readStamp);
+      if (readStamp > 0) {
+        sentinelPoolLock.unlockRead(readStamp);
+      }
     }
   }
 
@@ -100,13 +104,8 @@ public class JedisSentinelPoolExecutor implements JedisExecutor, Loggable {
   }
 
   private Pool<Jedis> constructPool() {
-    try {
-      return new JedisSentinelPool(masterName, sentinelHostPorts, poolConfig,
-          poolConfig.getConnectionTimeoutMillis(), password, db);
-    } catch (final Throwable t) {
-      error(t);
-      return null;
-    }
+    return new JedisSentinelPool(masterName, sentinelHostPorts, poolConfig,
+        poolConfig.getConnectionTimeoutMillis(), password, db);
   }
 
   private long ensurePoolExists() {
@@ -134,15 +133,17 @@ public class JedisSentinelPoolExecutor implements JedisExecutor, Loggable {
     try {
       if (sentinelPool == null || sentinelPool.equals(previouslyKnownPool)
           && ++numConsecutiveFailures > poolConfig.getMaxConsecutiveFailures()) {
-        sentinelPool = constructPool();
-        if (sentinelPool != null) {
+        try {
+          sentinelPool = constructPool();
           numConsecutiveFailures = 0;
+        } catch (final Throwable t) {
+          error(t);
         }
       }
     } finally {
       sentinelPoolLock.unlockWrite(writeStamp);
     }
-    return sentinelPoolLock.readLock();
+    return 0;
   }
 
   @Override
