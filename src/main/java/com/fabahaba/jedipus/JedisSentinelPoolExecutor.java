@@ -85,7 +85,7 @@ public class JedisSentinelPoolExecutor implements JedisExecutor, Loggable {
 
   private long returnJedis(final long readStamp, final Jedis jedis) {
     try {
-      sentinelPool.returnResourceObject(jedis);
+      sentinelPool.returnResource(jedis);
       numConsecutiveFailures = 0;
       return readStamp;
     } catch (final JedisException je) {
