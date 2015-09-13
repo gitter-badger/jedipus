@@ -18,7 +18,14 @@ public class ExtendedJedisPoolConfig extends JedisPoolConfig {
 
   public JedisSentinelPoolExecutor buildExecutor(final String masterName, final int db,
       final Collection<String> sentinelHostPorts, final String password) {
-    return new JedisSentinelPoolExecutor(masterName, db, sentinelHostPorts, password, this);
+    return buildExecutor(masterName, db, sentinelHostPorts, password, PoolFactory.DEFAULT_FACTORY);
+  }
+
+  public JedisSentinelPoolExecutor buildExecutor(final String masterName, final int db,
+      final Collection<String> sentinelHostPorts, final String password,
+      final PoolFactory poolFactory) {
+    return new JedisSentinelPoolExecutor(masterName, db, sentinelHostPorts, password, this,
+        poolFactory);
   }
 
   public ExtendedJedisPoolConfig copy() {

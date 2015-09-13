@@ -5,7 +5,6 @@ import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableSet;
 
 import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisSentinelPool;
 import redis.clients.jedis.exceptions.JedisException;
 import redis.clients.util.Pool;
 
@@ -22,6 +21,7 @@ public class JedisSentinelPoolExecutor implements JedisExecutor, Loggable {
   private final Set<String> sentinelHostPorts;
   private final String password;
   private final ExtendedJedisPoolConfig poolConfig;
+  private final PoolFactory poolFactory;
 
   private final StampedLock sentinelPoolLock;
   private Pool<Jedis> sentinelPool;
@@ -29,12 +29,13 @@ public class JedisSentinelPoolExecutor implements JedisExecutor, Loggable {
 
   public JedisSentinelPoolExecutor(final String masterName, final int db,
       final Collection<String> sentinelHostPorts, final String password) {
-    this(masterName, db, sentinelHostPorts, password, null);
+    this(masterName, db, sentinelHostPorts, password, null, PoolFactory.DEFAULT_FACTORY);
   }
 
   public JedisSentinelPoolExecutor(final String masterName, final int db,
       final Collection<String> sentinelHostPorts, final String password,
-      final ExtendedJedisPoolConfig poolConfig) {
+      final ExtendedJedisPoolConfig poolConfig, final PoolFactory poolFactory) {
+    this.poolFactory = poolFactory;
     this.masterName = masterName;
     this.db = db;
     this.sentinelHostPorts = ImmutableSet.copyOf(sentinelHostPorts);
@@ -103,11 +104,6 @@ public class JedisSentinelPoolExecutor implements JedisExecutor, Loggable {
     return tryToReInitPool(readStamp);
   }
 
-  private Pool<Jedis> constructPool() {
-    return new JedisSentinelPool(masterName, sentinelHostPorts, poolConfig,
-        poolConfig.getConnectionTimeoutMillis(), password, db);
-  }
-
   private long ensurePoolExists() {
     final long readStamp = sentinelPoolLock.readLock();
     if (sentinelPool != null)
@@ -117,7 +113,7 @@ public class JedisSentinelPoolExecutor implements JedisExecutor, Loggable {
     final long writeStamp = sentinelPoolLock.writeLock();
     try {
       if (sentinelPool == null) {
-        sentinelPool = constructPool();
+        sentinelPool = poolFactory.newPool(masterName, db, sentinelHostPorts, password, poolConfig);
       }
     } finally {
       sentinelPoolLock.unlockWrite(writeStamp);
@@ -134,7 +130,8 @@ public class JedisSentinelPoolExecutor implements JedisExecutor, Loggable {
       if (sentinelPool == null || sentinelPool.equals(previouslyKnownPool)
           && ++numConsecutiveFailures > poolConfig.getMaxConsecutiveFailures()) {
         try {
-          sentinelPool = constructPool();
+          sentinelPool =
+              poolFactory.newPool(masterName, db, sentinelHostPorts, password, poolConfig);
           numConsecutiveFailures = 0;
         } catch (final Throwable t) {
           error(t);
