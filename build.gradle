@@ -10,16 +10,16 @@ scmVersion {
     tag {
         prefix = project.name
     }
-		
+
 	repository {
         customUsername = "$System.env.AXION_RELEASE_GITHUB_TOKEN"
         customPassword = ""
     }
-    
+
 	versionCreator 'versionWithBranch'
-    
+
     hooks {
-        pre 'fileUpdate', [file: 'README.md', pattern: {v,p -> /$project.name:\d+.\d+.\d+/}, replacement: {v, p -> "$project.name:$v"}]
+        pre 'fileUpdate', [file: 'README.md', pattern: {v,p -> /\d+\.\d+\.\d+/}, replacement: {v, p -> "$v"}]
         pre 'commit'
     }
 }
@@ -47,14 +47,14 @@ task javadocJar(type: Jar, dependsOn:javadoc) {
 	from javadoc.destinationDir
 	classifier 'javadoc'
 }
-    
+
 publishing {
 	publications {
 		mavenJava( MavenPublication ) {
 			from components.java
-			
+
 			artifact sourcesJar
-			artifact javadocJar 
+			artifact javadocJar
         }
     }
 }
@@ -69,7 +69,7 @@ bintray {
     key = "$System.env.BINTRAY_API_KEY"
 
     publications = ['mavenJava']
-    
+
     pkg {
         repo = 'libs'
         name = project.name
@@ -86,7 +86,7 @@ bintray {
             gpg {
                 sign = true
                 passphrase = "$System.env.BINTRAY_GPG_PASSPHRASE"
-            }           
+            }
         }
     }
 }
@@ -97,7 +97,7 @@ findbugs {
 	toolVersion = "+"
 	reportsDir = file("$project.buildDir/findbugsReports")
     effort = "max"
-    reportLevel = "medium"
+    reportLevel = "low"
     ignoreFailures = false
 }
 
