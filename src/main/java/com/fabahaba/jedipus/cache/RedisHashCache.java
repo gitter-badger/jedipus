@@ -1,5 +1,6 @@
 package com.fabahaba.jedipus.cache;
 
+import com.fabahaba.fava.collect.MapUtils;
 import com.fabahaba.fava.func.Retryable;
 import com.fabahaba.fava.serialization.gson.GsonUtils;
 import com.fabahaba.jedipus.JedisExecutor;
@@ -100,7 +101,7 @@ public class RedisHashCache<F, V> implements Retryable {
   }
 
   public void putAll(final Map<F, V> entries, final int numRetries) {
-    final Map<F, Optional<V>> optionalEntries = new HashMap<>();
+    final Map<F, Optional<V>> optionalEntries = new HashMap<>(MapUtils.capacity(entries.size()));
     redisPoolExecutor.acceptPipeline(pipeline -> {
       entries.entrySet().forEach(entry -> {
         optionalEntries.put(entry.getKey(), Optional.of(entry.getValue()));
@@ -166,7 +167,7 @@ public class RedisHashCache<F, V> implements Retryable {
           redisPoolExecutor.applyJedisOptional(jedis -> jedis.hmget(mapName, fieldKeys),
               numCacheLoaderRetries).orElse(null);
 
-      final Map<F, Optional<V>> resultMap = new HashMap<>();
+      final Map<F, Optional<V>> resultMap = new HashMap<>(MapUtils.capacity(fieldKeys.length));
 
       if (response == null) {
         for (final F field : fields) {

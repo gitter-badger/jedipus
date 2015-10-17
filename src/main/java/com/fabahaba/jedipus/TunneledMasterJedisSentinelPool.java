@@ -32,7 +32,7 @@ public class TunneledMasterJedisSentinelPool extends Pool<Jedis> {
 
   protected String clientName;
 
-  protected Set<MasterListener> masterListeners = new HashSet<MasterListener>();
+  protected Set<MasterListener> masterListeners = new HashSet<>();
 
   protected Logger log = Logger.getLogger(getClass().getName());
 
