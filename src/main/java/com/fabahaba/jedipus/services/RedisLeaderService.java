@@ -32,6 +32,12 @@ public abstract class RedisLeaderService extends AbstractExecutionThreadService 
   public RedisLeaderService(final String serviceName, final JedisExecutor jedisExecutor,
       final Duration leadershipClaimDuration) {
 
+    this(serviceName, HostUtils.HOST_NAME, jedisExecutor, leadershipClaimDuration);
+  }
+
+  public RedisLeaderService(final String serviceName, final String leaderId,
+      final JedisExecutor jedisExecutor, final Duration leadershipClaimDuration) {
+
     this.serviceName = serviceName;
     this.executorService = ExecutorUtils.newSingleThreadScheduledExecutor(serviceName);
     this.jedisExecutor = jedisExecutor;
@@ -40,9 +46,8 @@ public abstract class RedisLeaderService extends AbstractExecutionThreadService 
     this.leadershipLock = new ReentrantLock();
     this.isLeaderCondition = leadershipLock.newCondition();
 
-    executorService.scheduleAtFixedRate(
-        new ManageLeaderState(serviceName.getBytes(StandardCharsets.UTF_8),
-            (int) leadershipClaimDuration.getSeconds()), 0, leadershipClaimDuration.toNanos() / 2,
+    executorService.scheduleAtFixedRate(new ManageLeaderState(serviceName, leaderId,
+        (int) leadershipClaimDuration.getSeconds()), 0, leadershipClaimDuration.toNanos() / 2,
         TimeUnit.NANOSECONDS);
   }
 
@@ -93,16 +98,17 @@ public abstract class RedisLeaderService extends AbstractExecutionThreadService 
 
   private static final byte[] NX = "NX".getBytes(StandardCharsets.UTF_8);
   private static final byte[] EX = "EX".getBytes(StandardCharsets.UTF_8);
-  private static final byte[] HOST_NAME_KEY_BYTES = HostUtils.HOST_NAME
-      .getBytes(StandardCharsets.UTF_8);
 
   private class ManageLeaderState implements Runnable {
 
     private final byte[] serviceName;
+    private final byte[] leaderId;
     private final int expireSeconds;
 
-    public ManageLeaderState(final byte[] serviceName, final int expireSeconds) {
-      this.serviceName = serviceName;
+    public ManageLeaderState(final String serviceName, final String leaderId,
+        final int expireSeconds) {
+      this.serviceName = serviceName.getBytes(StandardCharsets.UTF_8);
+      this.leaderId = leaderId.getBytes(StandardCharsets.UTF_8);
       this.expireSeconds = expireSeconds;
     }
 
@@ -116,10 +122,11 @@ public abstract class RedisLeaderService extends AbstractExecutionThreadService 
           return;
         }
 
-        final Response<byte[]> currentLeaderResponse = jedisExecutor.applyPipeline(pipeline -> {
-          pipeline.set(serviceName, HOST_NAME_KEY_BYTES, NX, EX, expireSeconds);
-          return pipeline.get(serviceName);
-        }, 3);
+        final Response<byte[]> currentLeaderResponse =
+            jedisExecutor.applyPipelinedTransaction(pipeline -> {
+              pipeline.set(serviceName, leaderId, NX, EX, expireSeconds);
+              return pipeline.get(serviceName);
+            }, 3);
 
         final byte[] currentLeaderBytes = currentLeaderResponse.get();
         final String currentLeader = new String(currentLeaderBytes, StandardCharsets.UTF_8);
