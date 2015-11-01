@@ -59,7 +59,7 @@ public class TunneledMasterJedisSentinelPool extends Pool<Jedis> {
   @Override
   public void destroy() {
     for (final MasterListener m : masterListeners) {
-      m.shutdown();
+      m.shutDown();
     }
 
     super.destroy();
@@ -259,7 +259,7 @@ public class TunneledMasterJedisSentinelPool extends Pool<Jedis> {
       }
     }
 
-    public void shutdown() {
+    public void shutDown() {
       try {
         log.fine("Shutting down listener on " + host + ":" + port);
         running.set(false);

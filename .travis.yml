@@ -16,6 +16,8 @@ cache:
   directories:
     - $HOME/.gradle/caches/
 
+install: /bin/true
+
 script: gradle check
 
 after_success: gradle bintrayUpload
