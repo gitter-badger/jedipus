@@ -143,6 +143,18 @@ public class JedisSentinelPoolExecutor implements JedisExecutor, Loggable {
     return 0;
   }
 
+  public void shutDown() {
+
+    final long writeStamp = sentinelPoolLock.writeLock();
+    try {
+      if (sentinelPool != null) {
+        sentinelPool.close();
+      }
+    } finally {
+      sentinelPoolLock.unlockWrite(writeStamp);
+    }
+  }
+
   @Override
   public String toString() {
     return MoreObjects.toStringHelper(JedisSentinelPoolExecutor.class)
