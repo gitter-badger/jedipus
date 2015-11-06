@@ -39,6 +39,7 @@ public class RedisHashCache<F, V> implements Retryable {
   public RedisHashCache(final Gson gson, final JedisExecutor redisPoolExecutor,
       final String mapName, final Type fieldType, final Type valueType,
       final CacheBuilder<Object, Object> cacheBuilder) {
+
     this(gson, redisPoolExecutor, mapName, fieldType, valueType, cacheBuilder,
         DEFAULT_NUM_CACHE_LOADER_RETRIES);
   }
@@ -46,6 +47,7 @@ public class RedisHashCache<F, V> implements Retryable {
   public RedisHashCache(final Gson gson, final JedisExecutor redisPoolExecutor,
       final String mapName, final Type fieldType, final Type valueType,
       final CacheBuilder<Object, Object> cacheBuilder, final int numCacheLoaderRetries) {
+
     this(gson, redisPoolExecutor, mapName, fieldType, valueType, cacheBuilder, ForkJoinPool
         .commonPool(), numCacheLoaderRetries);
   }
@@ -53,6 +55,7 @@ public class RedisHashCache<F, V> implements Retryable {
   public RedisHashCache(final Gson gson, final JedisExecutor redisPoolExecutor,
       final String mapName, final Type fieldType, final Type valueType,
       final CacheBuilder<Object, Object> cacheBuilder, final ExecutorService executor) {
+
     this(gson, redisPoolExecutor, mapName, fieldType, valueType, cacheBuilder, executor,
         DEFAULT_NUM_CACHE_LOADER_RETRIES);
   }
@@ -73,10 +76,12 @@ public class RedisHashCache<F, V> implements Retryable {
   }
 
   public Optional<V> get(final F field) {
+
     return passiveCache.getUnchecked(field);
   }
 
   public Map<F, Optional<V>> getAll(final Set<F> fields) {
+
     try {
       return passiveCache.getAll(fields);
     } catch (final ExecutionException e) {
@@ -85,11 +90,14 @@ public class RedisHashCache<F, V> implements Retryable {
   }
 
   public Long put(final F field, final V val) {
+
     return put(field, val, 1);
   }
 
   public Long put(final F field, final V val, final int numRetries) {
+
     return redisPoolExecutor.applyJedis(jedis -> {
+
       final Long mapFieldExists = jedis.hset(mapName, gson.toJson(field), gson.toJson(val));
       passiveCache.put(field, Optional.of(val));
       return mapFieldExists;
@@ -97,17 +105,23 @@ public class RedisHashCache<F, V> implements Retryable {
   }
 
   public void putAll(final Map<F, V> entries) {
+
     putAll(entries, 1);
   }
 
   public void putAll(final Map<F, V> entries, final int numRetries) {
+
     final Map<F, Optional<V>> optionalEntries = new HashMap<>(MapUtils.capacity(entries.size()));
+
     redisPoolExecutor.acceptPipeline(pipeline -> {
+
       entries.entrySet().forEach(entry -> {
+
         optionalEntries.put(entry.getKey(), Optional.of(entry.getValue()));
         pipeline.hset(mapName, gson.toJson(entry.getKey()), gson.toJson(entry.getValue()));
       });
     }, numRetries);
+
     passiveCache.putAll(optionalEntries);
   }
 
@@ -116,10 +130,14 @@ public class RedisHashCache<F, V> implements Retryable {
   }
 
   public synchronized void loadAll(final int numRetries) {
+
     redisPoolExecutor.applyJedisOptional(jedis -> jedis.hgetAll(mapName), numRetries).ifPresent(
         rawMap -> {
+
           rawMap.forEach((f, v) -> {
+
             final F field = gson.fromJson(f, fieldType);
+
             if (field != null) {
               final V val = gson.fromJson(v, valueType);
               passiveCache.put(field, Optional.ofNullable(val));
@@ -129,10 +147,12 @@ public class RedisHashCache<F, V> implements Retryable {
   }
 
   public Set<F> getCacheFieldSetView() {
+
     return passiveCache.asMap().keySet();
   }
 
   private static String fieldToKey(final Gson gson, final Object field) {
+
     return GsonUtils.singleEscapeQuotesInJson(gson.toJson(field));
   }
 
@@ -140,11 +160,13 @@ public class RedisHashCache<F, V> implements Retryable {
 
     @Override
     public Optional<V> load(final F field) throws Exception {
+
       return getWithTypedField(field);
     }
 
     @Override
     public ListenableFuture<Optional<V>> reload(final F field, final Optional<V> prevVal) {
+
       final ListenableFutureTask<Optional<V>> loaderTask =
           ListenableFutureTask.create(() -> getWithTypedField(field));
 
@@ -159,6 +181,7 @@ public class RedisHashCache<F, V> implements Retryable {
 
     @Override
     public Map<F, Optional<V>> loadAll(final Iterable<? extends F> fields) throws Exception {
+
       final String[] fieldKeys =
           StreamSupport.stream(fields.spliterator(), false)
               .map(f -> RedisHashCache.fieldToKey(gson, f)).toArray(String[]::new);
@@ -190,6 +213,7 @@ public class RedisHashCache<F, V> implements Retryable {
     }
 
     private Optional<V> getWithTypedField(final F field) {
+
       return redisPoolExecutor.applyJedisOptional(
           jedis -> jedis.hget(mapName, RedisHashCache.fieldToKey(gson, field)),
           numCacheLoaderRetries).map(valJson -> gson.fromJson(valJson, valueType));

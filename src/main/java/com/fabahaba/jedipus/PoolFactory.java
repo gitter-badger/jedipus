@@ -1,8 +1,8 @@
 package com.fabahaba.jedipus;
 
+import org.apache.commons.pool2.ObjectPool;
+
 import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisSentinelPool;
-import redis.clients.util.Pool;
 
 import java.util.Set;
 
@@ -10,10 +10,11 @@ import java.util.Set;
 public interface PoolFactory {
 
   static final PoolFactory DEFAULT_FACTORY = (masterName, db, sentinelHostPorts, password,
-      poolConfig) -> new JedisSentinelPool(masterName, sentinelHostPorts, poolConfig,
-      poolConfig.getConnectionTimeoutMillis(), password, db);
+      poolConfig) -> JedisPoolFactory.createMasterPool(masterName, sentinelHostPorts, poolConfig,
+      poolConfig.getConnectionTimeoutMillis(), poolConfig.getConnectionTimeoutMillis(), password,
+      0, PoolFactory.class.getName(), hostPort -> hostPort);
 
-  public Pool<Jedis> newPool(final String masterName, final int db,
+  public ObjectPool<Jedis> newPool(final String masterName, final int db,
       final Set<String> sentinelHostPorts, final String password,
       final ExtendedJedisPoolConfig poolConfig);
 }

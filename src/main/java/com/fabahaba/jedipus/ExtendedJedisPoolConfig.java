@@ -7,28 +7,32 @@ import java.util.Collection;
 
 public class ExtendedJedisPoolConfig extends JedisPoolConfig {
 
-  public static final int DEFAULT_MAX_CONSECUTIVE_FAILURES = 5;
+  public static final int DEFAULT_MAX_CONSECUTIVE_FAILURES = 3;
 
   private int connectionTimeoutMillis = Protocol.DEFAULT_TIMEOUT;
   private int maxConsecutiveFailures = DEFAULT_MAX_CONSECUTIVE_FAILURES;
 
   public static ExtendedJedisPoolConfig getDefaultConfig() {
+
     return new ExtendedJedisPoolConfig();
   }
 
   public JedisSentinelPoolExecutor buildExecutor(final String masterName, final int db,
       final Collection<String> sentinelHostPorts, final String password) {
+
     return buildExecutor(masterName, db, sentinelHostPorts, password, PoolFactory.DEFAULT_FACTORY);
   }
 
   public JedisSentinelPoolExecutor buildExecutor(final String masterName, final int db,
       final Collection<String> sentinelHostPorts, final String password,
       final PoolFactory poolFactory) {
+
     return new JedisSentinelPoolExecutor(masterName, db, sentinelHostPorts, password, this,
         poolFactory);
   }
 
   public ExtendedJedisPoolConfig copy() {
+
     return new ExtendedJedisPoolConfig().withBlockWhenExhausted(getBlockWhenExhausted())
         .withEvictionPolicyClassName(getEvictionPolicyClassName()).withJmxEnabled(getJmxEnabled())
         .withJmxNamePrefix(getJmxNamePrefix()).withLifo(getLifo()).withFairness(getFairness())
