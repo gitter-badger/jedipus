@@ -37,7 +37,6 @@ repositories {
 
 dependencies {
    compile 'com.fabahaba:fava-core:+'
-   compile 'com.fabahaba:fava-gson:+'
    compile 'redis.clients:jedis:+'
 }
 
