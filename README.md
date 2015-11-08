@@ -2,6 +2,7 @@
 
 >Jedipus provides a [JedisSentinelPoolExecutor](/jamespedwards42/jedipus/blob/master/src/main/java/com/fabahaba/jedipus/JedisSentinelPoolExecutor.java) which manages the state of a [JedisPool](https://github.com/xetorthio/jedis/wiki/Getting-started#basic-usage-example) and allows you to submit lambdas against [Jedis](https://github.com/xetorthio/jedis) clients.
 
+
 ###Usage
 ```java
 final int database = 0;

@@ -16,8 +16,6 @@ scmVersion {
         customPassword = ""
         pushTagsOnly = true
     }
-
-   versionCreator 'versionWithBranch'
 }
 
 project.group = 'com.fabahaba'
@@ -26,11 +24,12 @@ project.version = scmVersion.version
 sourceCompatibility = 1.8
 
 repositories {
+   maven { url  "http://dl.bintray.com/jamespedwards42/libs" }
    jcenter()
 }
 
 dependencies {
-   compile 'com.fabahaba:fava:+'
+   compile 'com.fabahaba:fava-core:+'
    compile 'redis.clients:jedis:+'
 }
 
@@ -77,7 +76,6 @@ bintray {
         publish = true
         version {
             name = project.version
-            //desc =  ''
             vcsTag = scmVersion.tag.prefix + '-' + project.version
             gpg {
                 sign = true
