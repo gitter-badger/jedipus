@@ -25,8 +25,8 @@ sourceCompatibility = 1.8
 
 configurations.all {
    resolutionStrategy {
-      cacheDynamicVersionsFor 100, 'minutes'
-      cacheChangingModulesFor 100, 'minutes'
+      cacheDynamicVersionsFor 10, 'minutes'
+      cacheChangingModulesFor 10, 'minutes'
    }
 }
 
