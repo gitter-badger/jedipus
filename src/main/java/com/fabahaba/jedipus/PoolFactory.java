@@ -11,8 +11,8 @@ public interface PoolFactory {
 
   static final PoolFactory DEFAULT_FACTORY = (masterName, db, sentinelHostPorts, password,
       poolConfig) -> JedisPoolFactory.createMasterPool(masterName, sentinelHostPorts, poolConfig,
-      poolConfig.getConnectionTimeoutMillis(), poolConfig.getConnectionTimeoutMillis(), password,
-      0, PoolFactory.class.getName(), hostPort -> hostPort);
+          poolConfig.getConnectionTimeoutMillis(), poolConfig.getConnectionTimeoutMillis(),
+          password, 0, PoolFactory.class.getName(), hostPort -> hostPort);
 
   public ObjectPool<Jedis> newPool(final String masterName, final int db,
       final Set<String> sentinelHostPorts, final String password,

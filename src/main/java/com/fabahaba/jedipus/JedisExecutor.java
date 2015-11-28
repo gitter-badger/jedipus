@@ -146,9 +146,9 @@ public interface JedisExecutor extends Retryable {
 
       cursor =
           applyJedisOptional(jedis -> jedis.scan(previousCursor, scanParams), numRetriesPerCall)
-              .map(
-                  scanResult -> keyConsumer.apply(scanResult.getResult()) ? scanResult
-                      .getStringCursor() : REDIS_CURSOR_SENTINEL).orElse(REDIS_CURSOR_SENTINEL);
+              .map(scanResult -> keyConsumer.apply(scanResult.getResult())
+                  ? scanResult.getStringCursor() : REDIS_CURSOR_SENTINEL)
+              .orElse(REDIS_CURSOR_SENTINEL);
 
     } while (!cursor.equals(REDIS_CURSOR_SENTINEL));
   }
@@ -175,6 +175,6 @@ public interface JedisExecutor extends Retryable {
         return Boolean.TRUE;
 
       }).orElse(Boolean.FALSE);
-    }, numRetries);
+    } , numRetries);
   }
 }

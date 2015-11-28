@@ -218,8 +218,9 @@ public class JedisSentinelPoolExecutor implements JedisExecutor, Loggable {
 
   @Override
   public String toString() {
-    return MoreObjects.toStringHelper(JedisSentinelPoolExecutor.class)
-        .add("masterName", masterName).add("db", db).add("sentinelHostPorts", sentinelHostPorts)
-        .add("poolConfig", poolConfig).add("sentinelPool", sentinelPool).toString();
+
+    return MoreObjects.toStringHelper(JedisSentinelPoolExecutor.class).add("masterName", masterName)
+        .add("db", db).add("sentinelHostPorts", sentinelHostPorts).add("poolConfig", poolConfig)
+        .add("sentinelPool", sentinelPool).toString();
   }
 }

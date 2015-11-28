@@ -36,8 +36,7 @@ public class ExtendedJedisPoolConfig extends JedisPoolConfig {
     return new ExtendedJedisPoolConfig().withBlockWhenExhausted(getBlockWhenExhausted())
         .withEvictionPolicyClassName(getEvictionPolicyClassName()).withJmxEnabled(getJmxEnabled())
         .withJmxNamePrefix(getJmxNamePrefix()).withLifo(getLifo()).withFairness(getFairness())
-        .withMaxIdle(getMaxIdle()).withMaxTotal(getMaxTotal())
-        .withMaxWaitMillis(getMaxWaitMillis())
+        .withMaxIdle(getMaxIdle()).withMaxTotal(getMaxTotal()).withMaxWaitMillis(getMaxWaitMillis())
         .withMinEvictableIdleTimeMillis(getMinEvictableIdleTimeMillis()).withMinIdle(getMinIdle())
         .withNumTestsPerEvictionRun(getNumTestsPerEvictionRun())
         .withSoftMinEvictableIdleTimeMillis(getSoftMinEvictableIdleTimeMillis())
@@ -53,6 +52,7 @@ public class ExtendedJedisPoolConfig extends JedisPoolConfig {
    * @return
    */
   public ExtendedJedisPoolConfig withMaxConsecutiveFailures(final int maxConsecutiveFailures) {
+
     this.maxConsecutiveFailures = maxConsecutiveFailures;
     return this;
   }
@@ -63,107 +63,128 @@ public class ExtendedJedisPoolConfig extends JedisPoolConfig {
    * @return {@code maxConsecutiveFailures}
    */
   public int getMaxConsecutiveFailures() {
+
     return maxConsecutiveFailures;
   }
 
   public int getConnectionTimeoutMillis() {
+
     return connectionTimeoutMillis;
   }
 
   public ExtendedJedisPoolConfig withConnectionTimeoutMillis(final int connectionTimeoutMillis) {
+
     this.connectionTimeoutMillis = connectionTimeoutMillis;
     return this;
   }
 
   public ExtendedJedisPoolConfig withMaxTotal(final int maxTotal) {
+
     setMaxTotal(maxTotal);
     return this;
   }
 
   public ExtendedJedisPoolConfig withMaxIdle(final int maxIdle) {
+
     setMaxIdle(maxIdle);
     return this;
   }
 
   public ExtendedJedisPoolConfig withMinIdle(final int minIdle) {
+
     setMinIdle(minIdle);
     return this;
   }
 
   public ExtendedJedisPoolConfig withLifo(final boolean lifo) {
+
     setLifo(lifo);
     return this;
   }
 
   public ExtendedJedisPoolConfig withFairness(final boolean fairness) {
+
     setFairness(fairness);
     return this;
   }
 
   public ExtendedJedisPoolConfig withMaxWaitMillis(final long maxWaitMillis) {
+
     setMaxWaitMillis(maxWaitMillis);
     return this;
   }
 
   public ExtendedJedisPoolConfig withMinEvictableIdleTimeMillis(
       final long minEvictableIdleTimeMillis) {
+
     setMinEvictableIdleTimeMillis(minEvictableIdleTimeMillis);
     return this;
   }
 
   public ExtendedJedisPoolConfig withSoftMinEvictableIdleTimeMillis(
       final long softMinEvictableIdleTimeMillis) {
+
     setSoftMinEvictableIdleTimeMillis(softMinEvictableIdleTimeMillis);
     return this;
   }
 
   public ExtendedJedisPoolConfig withNumTestsPerEvictionRun(final int numTestsPerEvictionRun) {
+
     setNumTestsPerEvictionRun(numTestsPerEvictionRun);
     return this;
   }
 
   public ExtendedJedisPoolConfig withTestOnCreate(final boolean testOnCreate) {
+
     setTestOnCreate(testOnCreate);
     return this;
   }
 
   public ExtendedJedisPoolConfig withTestOnBorrow(final boolean testOnBorrow) {
+
     setTestOnBorrow(testOnBorrow);
     return this;
   }
 
   public ExtendedJedisPoolConfig withTestOnReturn(final boolean testOnReturn) {
+
     setTestOnReturn(testOnReturn);
     return this;
   }
 
   public ExtendedJedisPoolConfig withTestWhileIdle(final boolean testWhileIdle) {
+
     setTestWhileIdle(testWhileIdle);
     return this;
   }
 
   public ExtendedJedisPoolConfig withTimeBetweenEvictionRunsMillis(
       final long timeBetweenEvictionRunsMillis) {
+
     setTimeBetweenEvictionRunsMillis(timeBetweenEvictionRunsMillis);
     return this;
   }
 
   public ExtendedJedisPoolConfig withEvictionPolicyClassName(final String evictionPolicyClassName) {
+
     setEvictionPolicyClassName(evictionPolicyClassName);
     return this;
   }
 
   public ExtendedJedisPoolConfig withBlockWhenExhausted(final boolean blockWhenExhausted) {
+
     setBlockWhenExhausted(blockWhenExhausted);
     return this;
   }
 
   public ExtendedJedisPoolConfig withJmxEnabled(final boolean jmxEnabled) {
+
     setJmxEnabled(jmxEnabled);
     return this;
   }
 
   public ExtendedJedisPoolConfig withJmxNamePrefix(final String jmxNamePrefix) {
+
     setJmxNamePrefix(jmxNamePrefix);
     return this;
   }

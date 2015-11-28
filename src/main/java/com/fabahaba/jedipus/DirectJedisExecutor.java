@@ -30,16 +30,19 @@ public class DirectJedisExecutor implements JedisExecutor {
   }
 
   public Jedis getJedis() {
+
     return this.jedis;
   }
 
   @Override
   public String toString() {
+
     return MoreObjects.toStringHelper(this).add("jedis", jedis).toString();
   }
 
   @Override
   public boolean equals(final Object other) {
+
     if (this == other)
       return true;
     if (!(other instanceof DirectJedisExecutor))
@@ -50,6 +53,7 @@ public class DirectJedisExecutor implements JedisExecutor {
 
   @Override
   public int hashCode() {
+
     return Objects.hash(jedis);
   }
 }

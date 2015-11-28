@@ -39,8 +39,8 @@ public class PublicJedisFactory implements PooledObjectFactory<Jedis> {
       final String clientName) {
 
     if (!JedisURIHelper.isValid(uri))
-      throw new InvalidURIException(String.format(
-          "Cannot open Redis connection due to invalid URI. %s", uri.toString()));
+      throw new InvalidURIException(
+          String.format("Cannot open Redis connection due to invalid URI. %s", uri.toString()));
 
     this.hostAndPort.set(new HostAndPort(uri.getHost(), uri.getPort()));
     this.connectionTimeout = connectionTimeout;
@@ -51,6 +51,7 @@ public class PublicJedisFactory implements PooledObjectFactory<Jedis> {
   }
 
   public void setHostAndPort(final HostAndPort hostAndPort) {
+
     this.hostAndPort.set(hostAndPort);
   }
 
@@ -117,9 +118,8 @@ public class PublicJedisFactory implements PooledObjectFactory<Jedis> {
     final int connectionPort = jedis.getClient().getPort();
 
     try {
-      return hostAndPort.getHost().equals(connectionHost)
-          && hostAndPort.getPort() == connectionPort && jedis.isConnected()
-          && jedis.ping().equals("PONG");
+      return hostAndPort.getHost().equals(connectionHost) && hostAndPort.getPort() == connectionPort
+          && jedis.isConnected() && jedis.ping().equals("PONG");
     } catch (JedisDataException | JedisConnectionException je) {
       return false;
     }

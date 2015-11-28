@@ -29,15 +29,14 @@ public class JedisPoolFactory {
     final HostAndPort masterHostPort =
         JedisPoolFactory.getMasterFromSentinels(sentinels, masterName, hostPortMapper);
 
-    final PooledObjectFactory<Jedis> jedisFactory =
-        new PublicJedisFactory(masterHostPort.getHost(), masterHostPort.getPort(),
-            connectionTimeout, soTimeout, password, database, clientName);
+    final PooledObjectFactory<Jedis> jedisFactory = new PublicJedisFactory(masterHostPort.getHost(),
+        masterHostPort.getPort(), connectionTimeout, soTimeout, password, database, clientName);
 
     return new FinalMasterJedisPool<>(poolConfig, jedisFactory);
   }
 
-  public static HostAndPort getMasterFromSentinels(final Set<String> sentinels, final String masterName,
-      final Function<HostAndPort, HostAndPort> hostPortMapper) {
+  public static HostAndPort getMasterFromSentinels(final Set<String> sentinels,
+      final String masterName, final Function<HostAndPort, HostAndPort> hostPortMapper) {
 
     HostAndPort masterHostPort = null;
     boolean sentinelAvailable = false;
@@ -64,8 +63,7 @@ public class JedisPoolFactory {
         }
 
         masterHostPort =
-            Objects.requireNonNull(
-                hostPortMapper.apply(JedisPoolFactory.toHostAndPort(masterAddr)),
+            Objects.requireNonNull(hostPortMapper.apply(JedisPoolFactory.toHostAndPort(masterAddr)),
                 "Unable to map master " + masterAddr);
 
         LOG.trace("Retreived master {} from sentinel {}.", masterAddr, sentinelHostPort);
@@ -77,12 +75,12 @@ public class JedisPoolFactory {
     }
 
     if (sentinelAvailable)
-      throw new JedisException("Can connect to sentinel, but " + masterName
-          + " seems to be not monitored...");
+      throw new JedisException(
+          "Can connect to sentinel, but " + masterName + " seems to be not monitored...");
 
 
-    throw new JedisConnectionException("All sentinels down, cannot determine where is "
-        + masterName + " master is running...");
+    throw new JedisConnectionException(
+        "All sentinels down, cannot determine where is " + masterName + " master is running...");
   }
 
   public static HostAndPort toHostAndPort(final List<String> hostPortStringParts) {
