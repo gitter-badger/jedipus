@@ -1,9 +1,9 @@
 package com.fabahaba.jedipus;
 
+import java.util.Collection;
+
 import redis.clients.jedis.JedisPoolConfig;
 import redis.clients.jedis.Protocol;
-
-import java.util.Collection;
 
 public class ExtendedJedisPoolConfig extends JedisPoolConfig {
 
@@ -49,7 +49,8 @@ public class ExtendedJedisPoolConfig extends JedisPoolConfig {
    *
    * @param maxConsecutiveFailures The maximum number of consecutive failures before re-constructing
    *        the underlying sentinel pool.
-   * @return
+   * 
+   * @return this ExtendedJedisPoolConfig.
    */
   public ExtendedJedisPoolConfig withMaxConsecutiveFailures(final int maxConsecutiveFailures) {
 

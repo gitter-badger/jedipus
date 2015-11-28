@@ -78,7 +78,6 @@ public class JedisPoolFactory {
       throw new JedisException(
           "Can connect to sentinel, but " + masterName + " seems to be not monitored...");
 
-
     throw new JedisConnectionException(
         "All sentinels down, cannot determine where is " + masterName + " master is running...");
   }

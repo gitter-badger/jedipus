@@ -1,8 +1,13 @@
 package com.fabahaba.jedipus;
 
+import java.net.URI;
+import java.util.concurrent.atomic.AtomicReference;
+
 import org.apache.commons.pool2.PooledObject;
 import org.apache.commons.pool2.PooledObjectFactory;
 import org.apache.commons.pool2.impl.DefaultPooledObject;
+
+import com.fabahaba.fava.logging.Loggable;
 
 import redis.clients.jedis.BinaryJedis;
 import redis.clients.jedis.HostAndPort;
@@ -12,10 +17,7 @@ import redis.clients.jedis.exceptions.JedisConnectionException;
 import redis.clients.jedis.exceptions.JedisDataException;
 import redis.clients.util.JedisURIHelper;
 
-import java.net.URI;
-import java.util.concurrent.atomic.AtomicReference;
-
-public class PublicJedisFactory implements PooledObjectFactory<Jedis> {
+public class PublicJedisFactory implements PooledObjectFactory<Jedis>, Loggable {
 
   private final AtomicReference<HostAndPort> hostAndPort = new AtomicReference<>();
   private final int connectionTimeout;
@@ -76,7 +78,8 @@ public class PublicJedisFactory implements PooledObjectFactory<Jedis> {
           jedis.disconnect();
         }
       } catch (final Exception e) {
-
+        catching(e);
+        warn("Failed to properly destroy jedis instance.", jedis);
       }
     }
   }

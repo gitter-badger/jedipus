@@ -5,6 +5,7 @@ plugins {
    id 'com.jfrog.bintray' version '1.4'
    id 'findbugs'
    id 'pmd'
+   id 'checkstyle'
 }
 
 scmVersion {
@@ -132,4 +133,12 @@ pmd {
    ]
    ignoreFailures = false
    sourceSets = [sourceSets.main]
+}
+
+checkstyle {
+   config = resources.text.fromFile("checkstyle/google_checks.xml")
+   configProperties = [samedir: "${projectDir}/checkstyle"]
+   reportsDir = file("$project.buildDir/checkstyleReports")
+   toolVersion = "+"
+   ignoreFailures = false
 }
