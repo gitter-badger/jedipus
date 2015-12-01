@@ -1,19 +1,18 @@
 package com.fabahaba.jedipus;
 
-import com.fabahaba.jedipus.JedisExecutor;
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Throwables;
-import com.google.common.hash.Hashing;
-import com.google.common.io.Resources;
-
-import redis.clients.jedis.Jedis;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import com.google.common.base.MoreObjects;
+import com.google.common.base.Throwables;
+import com.google.common.hash.Hashing;
+import com.google.common.io.Resources;
+
+import redis.clients.jedis.Jedis;
 
 public class LuaScriptData implements LuaScript {
 
@@ -22,18 +21,24 @@ public class LuaScriptData implements LuaScript {
   private final ByteBuffer sha1ByteBuffer;
   private final byte[] sha1Bytes;
 
-  public LuaScriptData(final String resourcePath) {
+  public LuaScriptData(final String luaScript) {
+
+    this.luaScript = luaScript;
+    this.sha1 = Hashing.sha1().hashString(luaScript, StandardCharsets.UTF_8).toString();
+    this.sha1Bytes = RESP.toBytes(sha1);
+    this.sha1ByteBuffer = ByteBuffer.wrap(sha1Bytes);
+  }
+
+  public static LuaScriptData fromResourcePath(final String resourcePath) {
 
     try {
-      this.luaScript = Resources
+      final String luaScript = Resources
           .readLines(Resources.getResource(LuaScriptData.class, resourcePath),
               StandardCharsets.UTF_8)
           .stream().filter(l -> !l.isEmpty() && !l.contains("--")).collect(Collectors.joining(" "))
           .replaceAll("\\s+", " ");
 
-      this.sha1 = Hashing.sha1().hashString(luaScript, StandardCharsets.UTF_8).toString();
-      this.sha1Bytes = sha1.getBytes(StandardCharsets.UTF_8);
-      this.sha1ByteBuffer = ByteBuffer.wrap(sha1Bytes);
+      return new LuaScriptData(luaScript);
     } catch (final IOException e) {
       throw Throwables.propagate(e);
     }
