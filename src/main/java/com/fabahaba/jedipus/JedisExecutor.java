@@ -1,17 +1,14 @@
 package com.fabahaba.jedipus;
 
+import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.Function;
+
 import com.fabahaba.fava.func.Retryable;
 
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
-import redis.clients.jedis.ScanParams;
 import redis.clients.jedis.exceptions.JedisConnectionException;
-
-import java.util.List;
-import java.util.Optional;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
-import java.util.function.Function;
 
 public interface JedisExecutor extends Retryable {
 
@@ -126,55 +123,5 @@ public interface JedisExecutor extends Retryable {
     } catch (final JedisConnectionException rce) {
       return Optional.empty();
     }
-  }
-
-  static final String REDIS_CURSOR_SENTINEL = "0";
-
-  default void applyOptionalKeyScan(final ScanParams scanParams,
-      final Function<List<String>, Boolean> keyConsumer, final int numRetriesPerCall) {
-
-    applyOptionalKeyScan(REDIS_CURSOR_SENTINEL, scanParams, keyConsumer, numRetriesPerCall);
-  }
-
-  default void applyOptionalKeyScan(final String startingCursor, final ScanParams scanParams,
-      final Function<List<String>, Boolean> keyConsumer, final int numRetriesPerCall) {
-
-    String cursor = startingCursor;
-    do {
-
-      final String previousCursor = cursor;
-
-      cursor =
-          applyJedisOptional(jedis -> jedis.scan(previousCursor, scanParams), numRetriesPerCall)
-              .map(scanResult -> keyConsumer.apply(scanResult.getResult())
-                  ? scanResult.getStringCursor() : REDIS_CURSOR_SENTINEL)
-              .orElse(REDIS_CURSOR_SENTINEL);
-
-    } while (!cursor.equals(REDIS_CURSOR_SENTINEL));
-  }
-
-  default void applyOptionalKeyValueScan(final ScanParams scanParams,
-      final BiFunction<String, String, Boolean> keyValueConsumer, final int numRetries) {
-
-    applyOptionalKeyScan(scanParams, keys -> {
-
-      if (keys.isEmpty())
-        return Boolean.TRUE;
-
-      final int numKeys = keys.size();
-      final String[] keyArray = keys.toArray(new String[numKeys]);
-
-      return applyJedisOptional(jedis -> jedis.mget(keyArray), numRetries).map(keyValues -> {
-
-        for (int i = 0; i < numKeys; i++) {
-
-          if (!keyValueConsumer.apply(keys.get(i), keyValues.get(i)))
-            return Boolean.FALSE;
-        }
-
-        return Boolean.TRUE;
-
-      }).orElse(Boolean.FALSE);
-    } , numRetries);
   }
 }
