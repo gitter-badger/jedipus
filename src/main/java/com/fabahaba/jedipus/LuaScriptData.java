@@ -53,10 +53,22 @@ public class LuaScriptData implements LuaScript {
   }
 
   @Override
+  public Object eval(Jedis jedis, int numRetries, int keyCount, byte[]... params) {
+
+    return jedis.evalsha(sha1Bytes, keyCount, params);
+  }
+
+  @Override
   public Object eval(final JedisExecutor jedisExecutor, final int numRetries,
       final List<byte[]> keys, final List<byte[]> args) {
 
     return jedisExecutor.applyJedis(jedis -> jedis.evalsha(sha1Bytes, keys, args), numRetries);
+  }
+
+  @Override
+  public Object eval(Jedis jedis, int numRetries, List<byte[]> keys, List<byte[]> args) {
+
+    return jedis.evalsha(sha1Bytes, keys, args);
   }
 
   @Override

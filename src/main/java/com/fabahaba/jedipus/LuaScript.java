@@ -1,12 +1,10 @@
 package com.fabahaba.jedipus;
 
-import com.fabahaba.jedipus.JedisExecutor;
-
-import redis.clients.jedis.Jedis;
-
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.stream.Stream;
+
+import redis.clients.jedis.Jedis;
 
 public interface LuaScript {
 
@@ -24,8 +22,14 @@ public interface LuaScript {
   public Object eval(final JedisExecutor jedisExecutor, final int numRetries, final int keyCount,
       final byte[]... params);
 
+  public Object eval(final Jedis jedis, final int numRetries, final int keyCount,
+      final byte[]... params);
+
   public Object eval(final JedisExecutor jedisExecutor, final int numRetries,
       final List<byte[]> keys, final List<byte[]> args);
+
+  public Object eval(final Jedis jedis, final int numRetries, final List<byte[]> keys,
+      final List<byte[]> args);
 
   public Object eval(final Jedis jedis, final int keyCount, final byte[]... params);
 

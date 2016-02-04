@@ -8,6 +8,7 @@ import com.fabahaba.fava.func.Retryable;
 
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
+import redis.clients.jedis.PipelineBase;
 import redis.clients.jedis.exceptions.JedisConnectionException;
 
 public interface JedisExecutor extends Retryable {
@@ -17,7 +18,7 @@ public interface JedisExecutor extends Retryable {
     return applyJedis(jedis -> jedis.getClient().getHost());
   }
 
-  default void acceptPipeline(final Consumer<Pipeline> pipelineConsumer) {
+  default void acceptPipeline(final Consumer<PipelineBase> pipelineConsumer) {
 
     acceptJedis(jedis -> {
       final Pipeline pipeline = jedis.pipelined();
@@ -26,12 +27,12 @@ public interface JedisExecutor extends Retryable {
     });
   }
 
-  default void acceptPipeline(final Consumer<Pipeline> pipelineConsumer, final int numRetries) {
+  default void acceptPipeline(final Consumer<PipelineBase> pipelineConsumer, final int numRetries) {
 
     retryRun(() -> acceptPipeline(pipelineConsumer), numRetries);
   }
 
-  default void acceptPipelinedTransaction(final Consumer<Pipeline> pipelineConsumer) {
+  default void acceptPipelinedTransaction(final Consumer<PipelineBase> pipelineConsumer) {
 
     acceptJedis(jedis -> {
       final Pipeline pipeline = jedis.pipelined();
@@ -42,7 +43,7 @@ public interface JedisExecutor extends Retryable {
     });
   }
 
-  default void acceptPipelinedTransaction(final Consumer<Pipeline> pipelineConsumer,
+  default void acceptPipelinedTransaction(final Consumer<PipelineBase> pipelineConsumer,
       final int numRetries) {
 
     retryRun(() -> acceptPipelinedTransaction(pipelineConsumer), numRetries);
