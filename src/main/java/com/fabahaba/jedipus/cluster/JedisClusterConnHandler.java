@@ -2,8 +2,8 @@ package com.fabahaba.jedipus.cluster;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
-import java.util.Set;
 import java.util.function.Function;
 
 import redis.clients.jedis.HostAndPort;
@@ -16,7 +16,7 @@ public class JedisClusterConnHandler implements Closeable {
 
   private final JedisClusterSlotCache cache;
 
-  public JedisClusterConnHandler(final Set<HostAndPort> discoveryNodes,
+  public JedisClusterConnHandler(final Collection<HostAndPort> discoveryNodes,
       final Function<HostAndPort, JedisPool> jedisPoolFactory) {
 
     this.cache = JedisClusterSlotCache.create(discoveryNodes, jedisPoolFactory);

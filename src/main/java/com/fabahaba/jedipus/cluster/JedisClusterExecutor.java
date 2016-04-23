@@ -2,7 +2,7 @@ package com.fabahaba.jedipus.cluster;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.Set;
+import java.util.Collection;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -32,33 +32,34 @@ public class JedisClusterExecutor implements Closeable {
 
   private final JedisClusterConnHandler connectionHandler;
 
-  public JedisClusterExecutor(final Set<HostAndPort> discoveryNodes) {
+  public JedisClusterExecutor(final Collection<HostAndPort> discoveryNodes) {
 
     this(discoveryNodes, DEFAULT_TIMEOUT);
   }
 
-  public JedisClusterExecutor(final Set<HostAndPort> discoveryNodes, final int timeout) {
+  public JedisClusterExecutor(final Collection<HostAndPort> discoveryNodes, final int timeout) {
 
     this(discoveryNodes, timeout, DEFAULT_MAX_REDIRECTIONS, DEFAULT_MAX_RETRIES,
         new GenericObjectPoolConfig());
   }
 
-  public JedisClusterExecutor(final Set<HostAndPort> discoveryNodes, final int timeout,
+  public JedisClusterExecutor(final Collection<HostAndPort> discoveryNodes, final int timeout,
       final int maxRedirections, final int maxRetries, final GenericObjectPoolConfig poolConfig) {
 
     this(discoveryNodes, timeout, timeout, maxRedirections, maxRetries, poolConfig);
   }
 
-  public JedisClusterExecutor(final Set<HostAndPort> discoveryNodes, final int connectionTimeout,
-      final int soTimeout, final int maxRedirections, final int maxRetries,
-      final GenericObjectPoolConfig poolConfig) {
+  public JedisClusterExecutor(final Collection<HostAndPort> discoveryNodes,
+      final int connectionTimeout, final int soTimeout, final int maxRedirections,
+      final int maxRetries, final GenericObjectPoolConfig poolConfig) {
 
     this(discoveryNodes, maxRedirections, maxRetries, node -> new JedisPool(poolConfig,
         node.getHost(), node.getPort(), connectionTimeout, soTimeout, null, 0, null));
   }
 
-  public JedisClusterExecutor(final Set<HostAndPort> discoveryNodes, final int maxRedirections,
-      final int maxRetries, final Function<HostAndPort, JedisPool> jedisPoolFactory) {
+  public JedisClusterExecutor(final Collection<HostAndPort> discoveryNodes,
+      final int maxRedirections, final int maxRetries,
+      final Function<HostAndPort, JedisPool> jedisPoolFactory) {
 
     this.connectionHandler = new JedisClusterConnHandler(discoveryNodes, jedisPoolFactory);
     this.maxRedirections = maxRedirections;
@@ -329,6 +330,8 @@ public class JedisClusterExecutor implements Closeable {
 
   public void acceptAllMasters(final Consumer<Jedis> jedisConsumer, final int maxRetries) {
 
+    JedisConnectionException failure = null;
+
     for (final JedisPool pool : connectionHandler.getPools()) {
 
       for (int retries = 0;;) {
@@ -340,12 +343,17 @@ public class JedisClusterExecutor implements Closeable {
         } catch (final JedisConnectionException jce) {
 
           if (++retries > maxRetries) {
-            throw jce;
+            failure = jce;
+            break;
           }
 
           continue;
         }
       }
+    }
+
+    if (failure != null) {
+      throw failure;
     }
   }
 

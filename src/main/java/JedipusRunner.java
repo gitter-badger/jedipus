@@ -1,8 +1,8 @@
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 
 import com.fabahaba.jedipus.cluster.JedisClusterExecutor;
-import com.google.common.collect.ImmutableSet;
 
 import redis.clients.jedis.HostAndPort;
 
@@ -10,8 +10,9 @@ public final class JedipusRunner {
 
   public static void main(final String[] args) throws IOException {
 
+
     try (JedisClusterExecutor cluster =
-        new JedisClusterExecutor(ImmutableSet.of(new HostAndPort("192.168.64.2", 7000)))) {
+        new JedisClusterExecutor(Collections.singleton(new HostAndPort("192.168.64.2", 7000)))) {
 
       // cluster.acceptAllMasters(jedis -> {
       //

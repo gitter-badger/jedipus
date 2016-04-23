@@ -1,6 +1,5 @@
 package com.fabahaba.jedipus;
 
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -12,23 +11,12 @@ public interface LuaScript {
 
   public String getLuaScript();
 
-  public String getSha1();
+  public String getSha1Hex();
 
-  public ByteBuffer getSha1Bytes();
-
-  default void loadIfMissing(final JedisExecutor jedisExecutor) {
-
-    LuaScript.loadMissingScripts(jedisExecutor, this);
-  }
-
-  public Object eval(final JedisExecutor jedisExecutor, final int numRetries, final int keyCount,
-      final byte[]... params);
+  public byte[] getSha1HexBytes();
 
   public Object eval(final Jedis jedis, final int numRetries, final int keyCount,
       final byte[]... params);
-
-  public Object eval(final JedisExecutor jedisExecutor, final int numRetries,
-      final List<byte[]> keys, final List<byte[]> args);
 
   public Object eval(final Jedis jedis, final int numRetries, final List<byte[]> keys,
       final List<byte[]> args);
@@ -36,15 +24,6 @@ public interface LuaScript {
   public Object eval(final Jedis jedis, final int keyCount, final byte[]... params);
 
   public Object eval(final Jedis jedis, final List<byte[]> keys, final List<byte[]> args);
-
-  public static void loadMissingScripts(final JedisExecutor jedisExecutor,
-      final LuaScript... luaScripts) {
-
-    final byte[][] scriptSha1Bytes = Stream.of(luaScripts).map(LuaScript::getSha1Bytes)
-        .map(ByteBuffer::array).toArray(byte[][]::new);
-
-    jedisExecutor.acceptJedis(jedis -> loadIfNotExists(jedis, scriptSha1Bytes, luaScripts));
-  }
 
   public static void loadIfNotExists(final Jedis jedis, final byte[][] scriptSha1Bytes,
       final LuaScript[] luaScripts) {
@@ -75,8 +54,8 @@ public interface LuaScript {
   public static void loadMissingScripts(final JedisClusterExecutor jedisExecutor,
       final LuaScript... luaScripts) {
 
-    final byte[][] scriptSha1Bytes = Stream.of(luaScripts).map(LuaScript::getSha1Bytes)
-        .map(ByteBuffer::array).toArray(byte[][]::new);
+    final byte[][] scriptSha1Bytes =
+        Stream.of(luaScripts).map(LuaScript::getSha1HexBytes).toArray(byte[][]::new);
 
     jedisExecutor.acceptAllMasters(jedis -> loadIfNotExists(jedis, scriptSha1Bytes, luaScripts));
   }

@@ -34,12 +34,10 @@ configurations.all {
 }
 
 repositories {
-   maven { url  "http://dl.bintray.com/jamespedwards42/libs" }
    jcenter()
 }
 
 dependencies {
-   compile 'com.fabahaba:fava-core:+'
    compile 'redis.clients:jedis:+'
 }
 
@@ -103,6 +101,7 @@ findbugs {
    effort = "max"
    reportLevel = "low"
    ignoreFailures = false
+   excludeFilter = file("findbugs-exclude.xml")
 }
 
 tasks.withType(FindBugs) {

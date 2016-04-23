@@ -1,104 +1,96 @@
 package com.fabahaba.jedipus;
 
+import java.io.BufferedReader;
 import java.io.IOException;
-import java.nio.ByteBuffer;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
+import javax.xml.bind.DatatypeConverter;
+
 import com.fabahaba.jedipus.cluster.JedisClusterExecutor;
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Throwables;
-import com.google.common.hash.Hashing;
-import com.google.common.io.Resources;
 
 import redis.clients.jedis.Jedis;
 
 public class LuaScriptData implements LuaScript {
 
+  private static final ThreadLocal<MessageDigest> SHA1 = ThreadLocal.withInitial(() -> {
+    try {
+      return MessageDigest.getInstance("SHA-1");
+    } catch (final NoSuchAlgorithmException e) {
+      throw new AssertionError(e);
+    }
+  });
+
   private final String luaScript;
-  private final String sha1;
-  private final ByteBuffer sha1ByteBuffer;
-  private final byte[] sha1Bytes;
+  private final String sha1Hex;
+  private final byte[] sha1HexBytes;
 
   public LuaScriptData(final String luaScript) {
 
     this.luaScript = luaScript;
-    this.sha1 = Hashing.sha1().hashString(luaScript, StandardCharsets.UTF_8).toString();
-    this.sha1Bytes = RESP.toBytes(sha1);
-    this.sha1ByteBuffer = ByteBuffer.wrap(sha1Bytes);
+    this.sha1Hex = DatatypeConverter
+        .printHexBinary(SHA1.get().digest(luaScript.getBytes(StandardCharsets.UTF_8)))
+        .toLowerCase(Locale.ENGLISH);
+    this.sha1HexBytes = sha1Hex.getBytes(StandardCharsets.UTF_8);
   }
 
-  public static LuaScriptData fromResourcePath(final String resourcePath) {
+  public static LuaScriptData fromResourcePath(final String resourcePath) throws IOException {
 
-    try {
-      final String luaScript = Resources
-          .readLines(Resources.getResource(LuaScriptData.class, resourcePath),
-              StandardCharsets.UTF_8)
-          .stream().filter(l -> !l.isEmpty() && !l.contains("--")).collect(Collectors.joining(" "))
-          .replaceAll("\\s+", " ");
+    try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+        LuaScriptData.class.getResourceAsStream(resourcePath), StandardCharsets.UTF_8))) {
+
+      final String luaScript = reader.lines().filter(l -> !l.isEmpty() && !l.contains("--"))
+          .collect(Collectors.joining(" ")).replaceAll("\\s+", " ");
 
       return new LuaScriptData(luaScript);
-    } catch (final IOException e) {
-      throw Throwables.propagate(e);
     }
-  }
-
-  @Override
-  public Object eval(final JedisExecutor jedisExecutor, final int numRetries, final int keyCount,
-      final byte[]... params) {
-
-    return jedisExecutor.applyJedis(jedis -> jedis.evalsha(sha1Bytes, keyCount, params),
-        numRetries);
   }
 
   @Override
   public Object eval(final Jedis jedis, final int numRetries, final int keyCount,
       final byte[]... params) {
 
-    return jedis.evalsha(sha1Bytes, keyCount, params);
-  }
-
-  @Override
-  public Object eval(final JedisExecutor jedisExecutor, final int numRetries,
-      final List<byte[]> keys, final List<byte[]> args) {
-
-    return jedisExecutor.applyJedis(jedis -> jedis.evalsha(sha1Bytes, keys, args), numRetries);
+    return jedis.evalsha(sha1HexBytes, keyCount, params);
   }
 
   @Override
   public Object eval(final Jedis jedis, final int numRetries, final List<byte[]> keys,
       final List<byte[]> args) {
 
-    return jedis.evalsha(sha1Bytes, keys, args);
+    return jedis.evalsha(sha1HexBytes, keys, args);
   }
 
   @Override
   public Object eval(final Jedis jedis, final int keyCount, final byte[]... params) {
 
-    return jedis.evalsha(sha1Bytes, keyCount, params);
+    return jedis.evalsha(sha1HexBytes, keyCount, params);
   }
 
   @Override
   public Object eval(final Jedis jedis, final List<byte[]> keys, final List<byte[]> args) {
 
-    return jedis.evalsha(sha1Bytes, keys, args);
+    return jedis.evalsha(sha1HexBytes, keys, args);
   }
 
   @Override
   public Object eval(final JedisClusterExecutor jedisExecutor, final int numRetries,
       final int keyCount, final byte[]... params) {
 
-    return jedisExecutor.applyJedis(params[0], jedis -> jedis.evalsha(sha1Bytes, keyCount, params),
-        numRetries);
+    return jedisExecutor.applyJedis(params[0],
+        jedis -> jedis.evalsha(sha1HexBytes, keyCount, params), numRetries);
   }
 
   @Override
   public Object eval(final JedisClusterExecutor jedisExecutor, final int numRetries,
       final List<byte[]> keys, final List<byte[]> args) {
 
-    return jedisExecutor.applyJedis(keys.get(0), jedis -> jedis.evalsha(sha1Bytes, keys, args),
+    return jedisExecutor.applyJedis(keys.get(0), jedis -> jedis.evalsha(sha1HexBytes, keys, args),
         numRetries);
   }
 
@@ -106,7 +98,7 @@ public class LuaScriptData implements LuaScript {
   public Object eval(final JedisClusterExecutor jedisExecutor, final int numRetries,
       final int keyCount, final int slotKey, final byte[]... params) {
 
-    return jedisExecutor.applyJedis(slotKey, jedis -> jedis.evalsha(sha1Bytes, keyCount, params),
+    return jedisExecutor.applyJedis(slotKey, jedis -> jedis.evalsha(sha1HexBytes, keyCount, params),
         numRetries);
   }
 
@@ -114,7 +106,7 @@ public class LuaScriptData implements LuaScript {
   public Object eval(final JedisClusterExecutor jedisExecutor, final int numRetries,
       final int slotKey, final List<byte[]> keys, final List<byte[]> args) {
 
-    return jedisExecutor.applyJedis(slotKey, jedis -> jedis.evalsha(sha1Bytes, keys, args),
+    return jedisExecutor.applyJedis(slotKey, jedis -> jedis.evalsha(sha1HexBytes, keys, args),
         numRetries);
   }
 
@@ -125,22 +117,15 @@ public class LuaScriptData implements LuaScript {
   }
 
   @Override
-  public String getSha1() {
+  public byte[] getSha1HexBytes() {
 
-    return this.sha1;
+    return sha1HexBytes;
   }
 
   @Override
-  public ByteBuffer getSha1Bytes() {
+  public String getSha1Hex() {
 
-    return sha1ByteBuffer;
-  }
-
-  @Override
-  public String toString() {
-
-    return MoreObjects.toStringHelper(this).add("sha1", sha1).add("luaScript", luaScript)
-        .toString();
+    return sha1Hex;
   }
 
   @Override
@@ -153,12 +138,19 @@ public class LuaScriptData implements LuaScript {
     if (!getClass().equals(other.getClass()))
       return false;
     final LuaScriptData castOther = LuaScriptData.class.cast(other);
-    return Arrays.equals(sha1Bytes, castOther.sha1Bytes);
+    return Arrays.equals(sha1HexBytes, castOther.sha1HexBytes);
   }
 
   @Override
   public int hashCode() {
 
-    return Arrays.hashCode(sha1Bytes);
+    return sha1HexBytes[0] << 24 | (sha1HexBytes[1] & 0xFF) << 16 | (sha1HexBytes[2] & 0xFF) << 8
+        | (sha1HexBytes[3] & 0xFF);
+  }
+
+  @Override
+  public String toString() {
+
+    return String.format("LuaScriptData %s:%n%n%s]", sha1Hex, luaScript);
   }
 }

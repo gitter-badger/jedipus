@@ -2,9 +2,9 @@ package com.fabahaba.jedipus.cluster;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -13,6 +13,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.locks.StampedLock;
 import java.util.function.Function;
+
+import com.fabahaba.jedipus.RESP;
 
 import redis.clients.jedis.BinaryJedisCluster;
 import redis.clients.jedis.HostAndPort;
@@ -45,7 +47,7 @@ final class JedisClusterSlotCache implements Closeable {
   }
 
   @SuppressWarnings("unchecked")
-  public static JedisClusterSlotCache create(final Set<HostAndPort> discoveryNodes,
+  public static JedisClusterSlotCache create(final Collection<HostAndPort> discoveryNodes,
       final Function<HostAndPort, JedisPool> jedisPoolFactory) {
 
     final Map<HostAndPort, JedisPool> nodes = new HashMap<>();
@@ -135,7 +137,7 @@ final class JedisClusterSlotCache implements Closeable {
 
   private static HostAndPort generateHostAndPort(final List<Object> hostInfos) {
 
-    return new HostAndPort(new String((byte[]) hostInfos.get(0), StandardCharsets.UTF_8),
+    return new HostAndPort(RESP.toString((byte[]) hostInfos.get(0)),
         ((Long) hostInfos.get(1)).intValue());
   }
 
