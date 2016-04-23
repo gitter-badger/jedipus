@@ -3,6 +3,7 @@ package com.fabahaba.jedipus;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -40,7 +41,7 @@ public class LuaScriptData implements LuaScript {
     this.sha1HexBytes = sha1Hex.getBytes(StandardCharsets.UTF_8);
   }
 
-  public static LuaScriptData fromResourcePath(final String resourcePath) throws IOException {
+  public static LuaScriptData fromResourcePath(final String resourcePath) {
 
     try (BufferedReader reader = new BufferedReader(new InputStreamReader(
         LuaScriptData.class.getResourceAsStream(resourcePath), StandardCharsets.UTF_8))) {
@@ -49,6 +50,9 @@ public class LuaScriptData implements LuaScript {
           .collect(Collectors.joining(" ")).replaceAll("\\s+", " ");
 
       return new LuaScriptData(luaScript);
+    } catch (final IOException e) {
+
+      throw new UncheckedIOException(e);
     }
   }
 
