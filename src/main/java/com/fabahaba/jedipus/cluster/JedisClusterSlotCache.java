@@ -47,7 +47,7 @@ final class JedisClusterSlotCache implements Closeable {
   }
 
   @SuppressWarnings("unchecked")
-  public static JedisClusterSlotCache create(final Collection<HostAndPort> discoveryNodes,
+  static JedisClusterSlotCache create(final Collection<HostAndPort> discoveryNodes,
       final Function<HostAndPort, JedisPool> jedisPoolFactory) {
 
     final Map<HostAndPort, JedisPool> nodes = new HashMap<>();
@@ -187,7 +187,8 @@ final class JedisClusterSlotCache implements Closeable {
     }
   }
 
-  public Set<HostAndPort> getDiscoveryNodes() {
+  Set<HostAndPort> getDiscoveryNodes() {
+
     return discoveryNodes;
   }
 
