@@ -1,74 +1,357 @@
 package com.fabahaba.jedipus.cluster;
 
-import java.util.Optional;
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import com.fabahaba.fava.func.Retryable;
-import com.google.common.base.Throwables;
+import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 
-import redis.clients.jedis.JedisCluster;
+import redis.clients.jedis.HostAndPort;
+import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.Pipeline;
+import redis.clients.jedis.PipelineBase;
+import redis.clients.jedis.exceptions.JedisAskDataException;
+import redis.clients.jedis.exceptions.JedisClusterException;
+import redis.clients.jedis.exceptions.JedisClusterMaxRedirectionsException;
 import redis.clients.jedis.exceptions.JedisConnectionException;
-import redis.clients.jedis.exceptions.JedisDataException;
+import redis.clients.jedis.exceptions.JedisMovedDataException;
+import redis.clients.jedis.exceptions.JedisRedirectionException;
+import redis.clients.util.JedisClusterCRC16;
 
-public interface JedisClusterExecutor extends Retryable {
+public class JedisClusterExecutor implements Closeable {
 
-  public void acceptJedis(final Consumer<JedisCluster> jedisConsumer);
+  private static final int DEFAULT_TIMEOUT = 2000;
+  private static final int DEFAULT_MAX_REDIRECTIONS = 5;
+  private static final int DEFAULT_MAX_RETRIES = 2;
 
-  default void acceptJedis(final Consumer<JedisCluster> jedisConsumer, final int numRetries) {
+  private final int maxRedirections;
+  private final int maxRetries;
 
-    retryRun(() -> acceptJedis(jedisConsumer), numRetries);
+  private final JedisClusterConnHandler connectionHandler;
+
+  public JedisClusterExecutor(final Set<HostAndPort> discoveryNodes) {
+
+    this(discoveryNodes, DEFAULT_TIMEOUT);
   }
 
-  public <T> T applyJedis(final Function<JedisCluster, T> jedisFunc);
+  public JedisClusterExecutor(final Set<HostAndPort> discoveryNodes, final int timeout) {
 
-  default <T> T applyJedis(final Function<JedisCluster, T> jedisFunc, final int numRetries) {
-
-    return retryCallWithThrow(() -> applyJedis(jedisFunc), numRetries);
+    this(discoveryNodes, timeout, DEFAULT_MAX_REDIRECTIONS, DEFAULT_MAX_RETRIES,
+        new GenericObjectPoolConfig());
   }
 
-  default <R> Optional<R> applyJedisOptionalWithThrow(
-      final Function<JedisCluster, R> jedisFunction) {
+  public JedisClusterExecutor(final Set<HostAndPort> discoveryNodes, final int timeout,
+      final int maxRedirections, final int maxRetries, final GenericObjectPoolConfig poolConfig) {
 
-    return Optional.ofNullable(applyJedis(jedisFunction));
+    this(discoveryNodes, timeout, timeout, maxRedirections, maxRetries, poolConfig);
   }
 
-  default <R> Optional<R> applyJedisOptionalWithThrow(final Function<JedisCluster, R> jedisFunction,
-      final int numRetries) {
+  public JedisClusterExecutor(final Set<HostAndPort> discoveryNodes, final int connectionTimeout,
+      final int soTimeout, final int maxRedirections, final int maxRetries,
+      final GenericObjectPoolConfig poolConfig) {
 
-    return Optional.ofNullable(applyJedis(jedisFunction, numRetries));
+    this(discoveryNodes, maxRedirections, maxRetries, node -> new JedisPool(poolConfig,
+        node.getHost(), node.getPort(), connectionTimeout, soTimeout, null, 0, null));
   }
 
-  default <R> Optional<R> applyJedisOptional(final Function<JedisCluster, R> jedisFunction) {
+  public JedisClusterExecutor(final Set<HostAndPort> discoveryNodes, final int maxRedirections,
+      final int maxRetries, final Function<HostAndPort, JedisPool> jedisPoolFactory) {
 
+    this.connectionHandler = new JedisClusterConnHandler(discoveryNodes, jedisPoolFactory);
+    this.maxRedirections = maxRedirections;
+    this.maxRetries = maxRetries;
+  }
+
+  public void acceptJedis(final byte[] slotKey, final Consumer<Jedis> jedisConsumer) {
+
+    acceptJedis(slotKey, jedisConsumer, maxRetries);
+  }
+
+  public void acceptJedis(final int slot, final Consumer<Jedis> jedisConsumer) {
+
+    acceptJedis(slot, jedisConsumer, maxRetries);
+  }
+
+  public void acceptJedis(final byte[] slotKey, final Consumer<Jedis> jedisConsumer,
+      final int maxRetries) {
+
+    acceptJedis(JedisClusterCRC16.getSlot(slotKey), jedisConsumer, maxRetries);
+  }
+
+  public void acceptJedis(final int slot, final Consumer<Jedis> jedisConsumer,
+      final int maxRetries) {
+
+    applyJedis(slot, j -> {
+      jedisConsumer.accept(j);
+      return null;
+    }, maxRetries);
+  }
+
+  public <R> R applyJedis(final byte[] slotKey, final Function<Jedis, R> jedisConsumer) {
+
+    return applyJedis(slotKey, jedisConsumer, maxRetries);
+  }
+
+  public <R> R applyJedis(final int slot, final Function<Jedis, R> jedisConsumer) {
+
+    return applyJedis(slot, jedisConsumer, maxRetries);
+  }
+
+  public <R> R applyJedis(final byte[] slotKey, final Function<Jedis, R> jedisConsumer,
+      final int maxRetries) {
+
+    return applyJedis(JedisClusterCRC16.getSlot(slotKey), jedisConsumer, maxRetries);
+  }
+
+  public <R> R applyPipeline(final byte[] slotKey, final Function<Pipeline, R> pipelineConsumer) {
+
+    return applyPipeline(JedisClusterCRC16.getSlot(slotKey), pipelineConsumer, maxRetries);
+  }
+
+  public <R> R applyPipeline(final int slot, final Function<Pipeline, R> pipelineConsumer) {
+
+    return applyPipeline(slot, pipelineConsumer, maxRetries);
+  }
+
+  public <R> R applyPipeline(final byte[] slotKey, final Function<Pipeline, R> pipelineConsumer,
+      final int maxRetries) {
+
+    return applyPipeline(JedisClusterCRC16.getSlot(slotKey), pipelineConsumer, maxRetries);
+  }
+
+  public <R> R applyPipeline(final int slot, final Function<Pipeline, R> pipelineConsumer,
+      final int maxRetries) {
+
+    return applyJedis(slot, jedis -> {
+      final Pipeline pipeline = jedis.pipelined();
+      final R result = pipelineConsumer.apply(pipeline);
+      pipeline.sync();
+      return result;
+    }, maxRetries);
+  }
+
+  public void acceptPipeline(final byte[] slotKey, final Consumer<PipelineBase> pipelineConsumer) {
+
+    acceptPipeline(JedisClusterCRC16.getSlot(slotKey), pipelineConsumer, maxRetries);
+  }
+
+  public void acceptPipeline(final int slot, final Consumer<PipelineBase> pipelineConsumer) {
+
+    acceptPipeline(slot, pipelineConsumer, maxRetries);
+  }
+
+  public void acceptPipeline(final byte[] slotKey, final Consumer<PipelineBase> pipelineConsumer,
+      final int maxRetries) {
+
+    acceptPipeline(JedisClusterCRC16.getSlot(slotKey), pipelineConsumer, maxRetries);
+  }
+
+  public void acceptPipeline(final int slot, final Consumer<PipelineBase> pipelineConsumer,
+      final int maxRetries) {
+
+    applyJedis(slot, jedis -> {
+      final Pipeline pipeline = jedis.pipelined();
+      pipelineConsumer.accept(pipeline);
+      pipeline.sync();
+      return null;
+    }, maxRetries);
+  }
+
+  public <R> R applyPipelinedTransaction(final byte[] slotKey,
+      final Function<Pipeline, R> pipelineConsumer) {
+
+    return applyPipelinedTransaction(JedisClusterCRC16.getSlot(slotKey), pipelineConsumer,
+        maxRetries);
+  }
+
+  public <R> R applyPipelinedTransaction(final int slot,
+      final Function<Pipeline, R> pipelineConsumer) {
+
+    return applyPipelinedTransaction(slot, pipelineConsumer, maxRetries);
+  }
+
+  public <R> R applyPipelinedTransaction(final byte[] slotKey,
+      final Function<Pipeline, R> pipelineConsumer, final int maxRetries) {
+
+    return applyPipelinedTransaction(JedisClusterCRC16.getSlot(slotKey), pipelineConsumer,
+        maxRetries);
+  }
+
+  public <R> R applyPipelinedTransaction(final int slot,
+      final Function<Pipeline, R> pipelineConsumer, final int maxRetries) {
+
+    return applyJedis(slot, jedis -> {
+      final Pipeline pipeline = jedis.pipelined();
+      pipeline.multi();
+      final R result = pipelineConsumer.apply(pipeline);
+      pipeline.exec();
+      pipeline.sync();
+      return result;
+    }, maxRetries);
+  }
+
+  public void acceptPipelinedTransaction(final byte[] slotKey,
+      final Consumer<PipelineBase> pipelineConsumer) {
+
+    acceptPipelinedTransaction(JedisClusterCRC16.getSlot(slotKey), pipelineConsumer, maxRetries);
+  }
+
+  public void acceptPipelinedTransaction(final int slot,
+      final Consumer<PipelineBase> pipelineConsumer) {
+
+    acceptPipelinedTransaction(slot, pipelineConsumer, maxRetries);
+  }
+
+  public void acceptPipelinedTransaction(final byte[] slotKey,
+      final Consumer<PipelineBase> pipelineConsumer, final int maxRetries) {
+
+    acceptPipelinedTransaction(JedisClusterCRC16.getSlot(slotKey), pipelineConsumer, maxRetries);
+  }
+
+  public void acceptPipelinedTransaction(final int slot,
+      final Consumer<PipelineBase> pipelineConsumer, final int maxRetries) {
+
+    applyJedis(slot, jedis -> {
+      final Pipeline pipeline = jedis.pipelined();
+      pipeline.multi();
+      pipelineConsumer.accept(pipeline);
+      pipeline.exec();
+      pipeline.sync();
+      return null;
+    }, maxRetries);
+  }
+
+  @SuppressWarnings("resource")
+  public <R> R applyJedis(final int slot, final Function<Jedis, R> jedisConsumer,
+      final int maxRetries) {
+
+    Jedis asking = null;
+    int retries = 0;
     try {
-      return applyJedisOptionalWithThrow(jedisFunction);
-    } catch (final JedisConnectionException rce) {
-      return Optional.empty();
+
+      // Optimistic first try
+      Jedis jedis = null;
+      try {
+        jedis = connectionHandler.getConnectionFromSlot(slot);
+        return jedisConsumer.apply(jedis);
+      } catch (final JedisConnectionException jce) {
+
+        if (maxRetries == 0) {
+          throw jce;
+        }
+        retries = 1;
+      } catch (final JedisMovedDataException jre) {
+
+        if (jedis == null) {
+          connectionHandler.renewSlotCache();
+        } else {
+          connectionHandler.renewSlotCache(jedis);
+        }
+      } catch (final JedisAskDataException jre) {
+
+        asking = connectionHandler.getConnectionFromNode(jre.getTargetNode());
+      } catch (final JedisRedirectionException jre) {
+
+        throw new JedisClusterException(jre);
+      } finally {
+        if (jedis != null) {
+          jedis.close();
+        }
+      }
+
+      for (int redirections = retries == 0 ? 1 : 0;;) {
+
+        Jedis connection = null;
+        try {
+
+          if (asking == null) {
+
+            connection = retries > 1 ? connectionHandler.getConnection()
+                : connectionHandler.getConnectionFromSlot(slot);
+            return jedisConsumer.apply(connection);
+          }
+
+          connection = asking;
+          asking = null;
+          connection.asking();
+          return jedisConsumer.apply(connection);
+        } catch (final JedisConnectionException jce) {
+
+          if (++retries > maxRetries) {
+            throw jce;
+          }
+          continue;
+        } catch (final JedisMovedDataException jre) {
+
+          if (++redirections > maxRedirections) {
+            throw new JedisClusterMaxRedirectionsException(jre);
+          }
+
+          if (connection == null) {
+            connectionHandler.renewSlotCache();
+          } else {
+            connectionHandler.renewSlotCache(connection);
+          }
+          retries = 0;
+          continue;
+        } catch (final JedisAskDataException jre) {
+
+          if (++redirections > maxRedirections) {
+            throw new JedisClusterMaxRedirectionsException(jre);
+          }
+
+          asking = connectionHandler.getConnectionFromNode(jre.getTargetNode());
+          retries = 0;
+          continue;
+        } catch (final JedisRedirectionException jre) {
+
+          throw new JedisClusterException(jre);
+        } finally {
+          if (connection != null) {
+            connection.close();
+          }
+        }
+      }
+    } finally {
+      if (asking != null) {
+        asking.close();
+      }
     }
   }
 
-  default <R> Optional<R> applyJedisOptional(final Function<JedisCluster, R> jedisFunction,
-      final int numRetries) {
+  public void acceptAllMasters(final Consumer<Jedis> jedisConsumer) {
 
-    try {
-      return applyJedisOptionalWithThrow(jedisFunction, numRetries);
-    } catch (final JedisConnectionException rce) {
-      return Optional.empty();
+    acceptAllMasters(jedisConsumer, maxRetries);
+  }
+
+  public void acceptAllMasters(final Consumer<Jedis> jedisConsumer, final int maxRetries) {
+
+    for (final JedisPool pool : connectionHandler.getPools()) {
+
+      for (int retries = 0;;) {
+
+        try (Jedis jedis = pool.getResource()) {
+
+          jedisConsumer.accept(jedis);
+          break;
+        } catch (final JedisConnectionException jce) {
+
+          if (++retries > maxRetries) {
+            throw jce;
+          }
+
+          continue;
+        }
+      }
     }
   }
 
   @Override
-  default void handleException(final Exception ex) {
+  public void close() throws IOException {
 
-    if (ex.getCause() != null && ex.getCause() instanceof InterruptedException) {
-      throw Throwables.propagate(ex);
-    }
-
-    if (ex instanceof JedisDataException) {
-      throw ((JedisDataException) ex);
-    }
-
-    catching(ex);
+    connectionHandler.close();
   }
 }

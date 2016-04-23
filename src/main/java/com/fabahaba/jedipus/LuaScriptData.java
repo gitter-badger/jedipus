@@ -14,7 +14,6 @@ import com.google.common.hash.Hashing;
 import com.google.common.io.Resources;
 
 import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisCluster;
 
 public class LuaScriptData implements LuaScript {
 
@@ -91,41 +90,32 @@ public class LuaScriptData implements LuaScript {
   public Object eval(final JedisClusterExecutor jedisExecutor, final int numRetries,
       final int keyCount, final byte[]... params) {
 
-    return jedisExecutor.applyJedis(jedis -> jedis.evalsha(sha1Bytes, keyCount, params),
+    return jedisExecutor.applyJedis(params[0], jedis -> jedis.evalsha(sha1Bytes, keyCount, params),
         numRetries);
-  }
-
-  @Override
-  public Object eval(final JedisCluster jedis, final int numRetries, final int keyCount,
-      final byte[]... params) {
-
-    return jedis.evalsha(sha1Bytes, keyCount, params);
   }
 
   @Override
   public Object eval(final JedisClusterExecutor jedisExecutor, final int numRetries,
       final List<byte[]> keys, final List<byte[]> args) {
 
-    return jedisExecutor.applyJedis(jedis -> jedis.evalsha(sha1Bytes, keys, args), numRetries);
+    return jedisExecutor.applyJedis(keys.get(0), jedis -> jedis.evalsha(sha1Bytes, keys, args),
+        numRetries);
   }
 
   @Override
-  public Object eval(final JedisCluster jedis, final int numRetries, final List<byte[]> keys,
-      final List<byte[]> args) {
+  public Object eval(final JedisClusterExecutor jedisExecutor, final int numRetries,
+      final int keyCount, final int slotKey, final byte[]... params) {
 
-    return jedis.evalsha(sha1Bytes, keys, args);
+    return jedisExecutor.applyJedis(slotKey, jedis -> jedis.evalsha(sha1Bytes, keyCount, params),
+        numRetries);
   }
 
   @Override
-  public Object eval(final JedisCluster jedis, final int keyCount, final byte[]... params) {
+  public Object eval(final JedisClusterExecutor jedisExecutor, final int numRetries,
+      final int slotKey, final List<byte[]> keys, final List<byte[]> args) {
 
-    return jedis.evalsha(sha1Bytes, keyCount, params);
-  }
-
-  @Override
-  public Object eval(final JedisCluster jedis, final List<byte[]> keys, final List<byte[]> args) {
-
-    return jedis.evalsha(sha1Bytes, keys, args);
+    return jedisExecutor.applyJedis(slotKey, jedis -> jedis.evalsha(sha1Bytes, keys, args),
+        numRetries);
   }
 
   @Override

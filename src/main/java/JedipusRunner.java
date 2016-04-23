@@ -1,28 +1,29 @@
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
-import com.fabahaba.jedipus.cluster.DirectJedisClusterExecutor;
+import com.fabahaba.jedipus.cluster.JedisClusterExecutor;
 import com.google.common.collect.ImmutableSet;
 
 import redis.clients.jedis.HostAndPort;
-import redis.clients.jedis.JedisCluster;
 
 public final class JedipusRunner {
 
   public static void main(final String[] args) throws IOException {
 
-    try (JedisCluster cluster =
-        new JedisCluster(ImmutableSet.of(new HostAndPort("104.197.120.247", 6379)))) {
+    try (JedisClusterExecutor cluster =
+        new JedisClusterExecutor(ImmutableSet.of(new HostAndPort("192.168.64.2", 7000)))) {
 
-      System.out.println(cluster.getClusterNodes());
+      // cluster.acceptAllMasters(jedis -> {
+      //
+      // System.out.println("checking " + jedis.info());
+      // });
 
-      final DirectJedisClusterExecutor je = new DirectJedisClusterExecutor(cluster);
-      je.acceptJedis(jedisCluster -> {
+      final byte[] key = "test".getBytes(StandardCharsets.UTF_8);
+      cluster.acceptJedis(key, jedis -> {
 
-        jedisCluster.getClusterNodes().keySet().forEach(hostPort -> {
-
-          System.out.println("checking " + hostPort);
-
-        });
+        jedis.set(key, "yay".getBytes(StandardCharsets.UTF_8));
+        System.out.println(new String(jedis.get(key), StandardCharsets.UTF_8));
+        System.out.println(jedis.del(key));
       });
     }
   }

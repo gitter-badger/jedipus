@@ -7,7 +7,6 @@ import java.util.stream.Stream;
 import com.fabahaba.jedipus.cluster.JedisClusterExecutor;
 
 import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisCluster;
 
 public interface LuaScript {
 
@@ -64,16 +63,14 @@ public interface LuaScript {
   public Object eval(final JedisClusterExecutor jedisExecutor, final int numRetries,
       final int keyCount, final byte[]... params);
 
-  public Object eval(JedisCluster jedis, int numRetries, int keyCount, byte[]... params);
-
   public Object eval(final JedisClusterExecutor jedisExecutor, final int numRetries,
       final List<byte[]> keys, final List<byte[]> args);
 
-  public Object eval(JedisCluster jedis, int numRetries, List<byte[]> keys, List<byte[]> args);
+  public Object eval(final JedisClusterExecutor jedisExecutor, final int numRetries,
+      final int keyCount, final int slotKey, final byte[]... params);
 
-  public Object eval(final JedisCluster jedis, final int keyCount, final byte[]... params);
-
-  public Object eval(final JedisCluster jedis, final List<byte[]> keys, final List<byte[]> args);
+  public Object eval(final JedisClusterExecutor jedisExecutor, final int numRetries,
+      final int slotKey, final List<byte[]> keys, final List<byte[]> args);
 
   public static void loadMissingScripts(final JedisClusterExecutor jedisExecutor,
       final LuaScript... luaScripts) {
@@ -81,18 +78,6 @@ public interface LuaScript {
     final byte[][] scriptSha1Bytes = Stream.of(luaScripts).map(LuaScript::getSha1Bytes)
         .map(ByteBuffer::array).toArray(byte[][]::new);
 
-    jedisExecutor.acceptJedis(jedisCluster -> {
-
-      jedisCluster.getClusterNodes().values().forEach(jedisPool -> {
-
-        try (final Jedis jedis = jedisPool.getResource()) {
-
-          if (jedis.info().contains("role:master")) {
-
-            loadIfNotExists(jedis, scriptSha1Bytes, luaScripts);
-          }
-        }
-      });
-    });
+    jedisExecutor.acceptAllMasters(jedis -> loadIfNotExists(jedis, scriptSha1Bytes, luaScripts));
   }
 }
