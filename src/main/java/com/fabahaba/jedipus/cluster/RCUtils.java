@@ -9,8 +9,16 @@ public final class RCUtils {
     return "{" + shardKey + "}";
   }
 
+  public static final String NAMESPACE_DELIMITER = ":";
+
   public static String createNameSpacedHashTag(final String shardKey) {
 
-    return "{" + shardKey + "}:";
+    return createNameSpacedHashTag(shardKey, NAMESPACE_DELIMITER);
+  }
+
+  public static String createNameSpacedHashTag(final String shardKey,
+      final String namespaceDelimiter) {
+
+    return "{" + shardKey + "}" + namespaceDelimiter;
   }
 }

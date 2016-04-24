@@ -7,7 +7,7 @@ Features:
 * Use known slot ints for O(1) direct primitive array access to a corresponding JedisPool.
 * Minimal locking is applied using a StampedLock optimistic read when retrieiving a JedisPool.  Locking is required to handle conccurent Redis hash slot remapping events.
 * Re-uses the work already done on Jedis clients to support pipelining and transactions.  Remember that all keys must share the same hash slot, instead of validating this, Jedipus trusts the user in order to avoid unnecessary overhead.
-* Minimal dependency tree (Jedipus->Jedis->org.apache.commons:commons-pool2)
+* Minimal dependency tree (Jedipus -> Jedis -> org.apache.commons:commons-pool2).
 * Utilities to manage and execute Lua scripts.
 
 ###Usage
