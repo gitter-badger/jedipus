@@ -16,9 +16,8 @@ public final class RCUtils {
     return createNameSpacedHashTag(shardKey, NAMESPACE_DELIM);
   }
 
-  public static String createNameSpacedHashTag(final String shardKey,
-      final String namespaceDelim) {
+  public static String createNameSpacedHashTag(final String shardKey, final String namespaceDelim) {
 
-    return "{" + shardKey + "}" + namespaceDelim;
+    return createHashTag(shardKey) + namespaceDelim;
   }
 }
