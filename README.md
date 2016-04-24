@@ -9,8 +9,9 @@
 * Re-uses the work already done on Jedis clients to support pipelining and transactions.  Remember that all keys must share the same hash slot, instead of validating this, Jedipus trusts the user in order to avoid unnecessary overhead.
 * Minimal dependency tree (Jedipus -> Jedis -> org.apache.commons:commons-pool2).
 * Utilities to manage and execute Lua scripts.
+* Optional user supplied HostAndPort -> JedisPool factories.  Useful for client side ip/port mapping or using different pool sizes per node.
 
-###Usage
+###Basic Usage Example
 ```java
 final Collection<HostAndPort> discoveryNodes =
     Collections.singleton(new HostAndPort("127.0.0.1", 7000));
