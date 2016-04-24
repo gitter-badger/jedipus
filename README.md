@@ -5,7 +5,7 @@
 **Features:**
 * Execute Jedis Consumer and Function Java 8 lambas against a Redis Cluster.
 * Use known slot ints for O(1) direct primitive array access to a corresponding JedisPool.
-* Minimal locking is applied using a StampedLock optimistic read when retrieiving a JedisPool.  Locking is required to handle conccurent Redis hash slot remapping events.
+* Minimal locking is applied using a StampedLock optimistic read when retrieiving a JedisPool.  Locking is required to handle concurrent Redis hash slot remapping events.
 * Re-uses the work already done on Jedis clients to support pipelining and transactions.  Remember that all keys must share the same hash slot, instead of validating this, Jedipus trusts the user in order to avoid unnecessary overhead.
 * Minimal dependency tree (Jedipus -> Jedis -> org.apache.commons:commons-pool2).
 * Utilities to manage and execute Lua scripts.
@@ -115,7 +115,7 @@ public final class RedisLock {
   }
 ```
 
-TRY_ACQUIRE_LOCK.lua
+**src/main/resoures/TRY_ACQUIRE_LOCK.lua**
 ```lua
 -- Returns the previous owner, the current owner and the pttl for the lock.
 -- Returns either {null, lockOwner, pexpire}, {owner, owner, pexpire} or {owner, owner, pttl}.
@@ -150,7 +150,7 @@ end
 return {owner, owner, redis.call('pttl', lockName)};
 ```
 
-TRY_RELEASE_LOCK.lua
+**src/main/resoures/TRY_RELEASE_LOCK.lua**
 ```lua
 local lockName = KEYS[1];
 local lockOwner = ARGV[1];
