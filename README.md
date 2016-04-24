@@ -94,12 +94,15 @@ public final class RedisLock {
       final byte[] currentOwner = (byte[]) lockOwners.get(1);
       final long pttl = (long) lockOwners.get(2);
 
+      // 'myOwnerId' has lock 'mylock' for 3000ms.
       System.out.format("'%s' has lock '%s' for %dms.%n", RESP.toString(currentOwner),
           RESP.toString(lockName), pttl);
 
       final long released =
           (long) TRY_RELEASE_LOCK.eval(jce, numRetries, numKeys, lockName, ownerId);
+
       if (released == 1) {
+        // Lock was released by 'myOwnerId'.
         System.out.format("Lock was released by '%s'.%n", RESP.toString(ownerId));
       } else {
         System.out.format("Lock was no longer owned by '%s'.%n", RESP.toString(ownerId));
