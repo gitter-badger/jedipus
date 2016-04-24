@@ -100,17 +100,17 @@ public class LuaScriptData implements LuaScript {
 
   @Override
   public Object eval(final JedisClusterExecutor jedisExecutor, final int numRetries,
-      final int keyCount, final int slotKey, final byte[]... params) {
+      final int keyCount, final int slot, final byte[]... params) {
 
-    return jedisExecutor.applyJedis(slotKey, jedis -> jedis.evalsha(sha1HexBytes, keyCount, params),
+    return jedisExecutor.applyJedis(slot, jedis -> jedis.evalsha(sha1HexBytes, keyCount, params),
         numRetries);
   }
 
   @Override
   public Object eval(final JedisClusterExecutor jedisExecutor, final int numRetries,
-      final int slotKey, final List<byte[]> keys, final List<byte[]> args) {
+      final int slot, final List<byte[]> keys, final List<byte[]> args) {
 
-    return jedisExecutor.applyJedis(slotKey, jedis -> jedis.evalsha(sha1HexBytes, keys, args),
+    return jedisExecutor.applyJedis(slot, jedis -> jedis.evalsha(sha1HexBytes, keys, args),
         numRetries);
   }
 

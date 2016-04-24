@@ -46,10 +46,10 @@ public interface LuaScript {
       final List<byte[]> keys, final List<byte[]> args);
 
   public Object eval(final JedisClusterExecutor jedisExecutor, final int numRetries,
-      final int keyCount, final int slotKey, final byte[]... params);
+      final int keyCount, final int slot, final byte[]... params);
 
-  public Object eval(final JedisClusterExecutor jedisExecutor, final int numRetries,
-      final int slotKey, final List<byte[]> keys, final List<byte[]> args);
+  public Object eval(final JedisClusterExecutor jedisExecutor, final int numRetries, final int slot,
+      final List<byte[]> keys, final List<byte[]> args);
 
   public static void loadMissingScripts(final JedisClusterExecutor jedisExecutor,
       final LuaScript... luaScripts) {
