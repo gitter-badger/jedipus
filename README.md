@@ -156,7 +156,7 @@ local lockName = KEYS[1];
 local lockOwner = ARGV[1];
 
 if redis.call('get', lockName) == lockOwner then
-   return redis.call('del', lockOwner);
+   return redis.call('del', lockName);
 end
 
 return -1;
