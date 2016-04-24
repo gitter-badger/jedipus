@@ -296,7 +296,6 @@ public class JedisClusterExecutor implements Closeable {
           } else {
             connectionHandler.renewSlotCache(connection);
           }
-          retries = 0;
           continue;
         } catch (final JedisAskDataException jre) {
 
@@ -305,7 +304,6 @@ public class JedisClusterExecutor implements Closeable {
           }
 
           asking = connectionHandler.getConnectionFromNode(jre.getTargetNode());
-          retries = 0;
           continue;
         } catch (final JedisRedirectionException jre) {
 

@@ -167,6 +167,7 @@ final class JedisClusterSlotCache implements Closeable {
         lock.unlockRead(readStamp);
       }
     }
+
     return pool;
   }
 

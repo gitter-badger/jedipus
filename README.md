@@ -2,7 +2,7 @@
 
 >Jedipus is a Redis Cluster Java client that manages JedisPool's against masters of the cluster.
 
-Features:
+**Features:**
 * Execute Jedis Consumer and Function Java 8 lambas against a Redis Cluster.
 * Use known slot ints for O(1) direct primitive array access to a corresponding JedisPool.
 * Minimal locking is applied using a StampedLock optimistic read when retrieiving a JedisPool.  Locking is required to handle conccurent Redis hash slot remapping events.
@@ -54,6 +54,8 @@ try (final JedisClusterExecutor jce = new JedisClusterExecutor(discoveryNodes)) 
 
   // cleanup
   jce.acceptJedis(slot, jedis -> jedis.del(hashTaggedKey, fooKey));
+} catch (final IOException e) {
+  throw new UncheckedIOException(e);
 }
 ```
 
