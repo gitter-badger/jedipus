@@ -57,6 +57,106 @@ try (final JedisClusterExecutor jce = new JedisClusterExecutor(discoveryNodes)) 
 }
 ```
 
+###Redis Lock Lua Example
+
+```java
+public final class RedisLock {
+
+  private RedisLock() {}
+
+  private static final LuaScriptData TRY_ACQUIRE_LOCK =
+      LuaScriptData.fromResourcePath("/TRY_ACQUIRE_LOCK.lua");
+
+  private static final LuaScriptData TRY_RELEASE_LOCK =
+      LuaScriptData.fromResourcePath("/TRY_RELEASE_LOCK.lua");
+
+  @SuppressWarnings("unchecked")
+  public static void main(final String[] args) {
+
+    final Collection<HostAndPort> discoveryNodes =
+        Collections.singleton(new HostAndPort("127.0.0.1", 7000));
+
+    final int numRetries = 1;
+    final int numKeys = 1;
+
+    try (final JedisClusterExecutor jce = new JedisClusterExecutor(discoveryNodes)) {
+
+      LuaScript.loadMissingScripts(jce, TRY_ACQUIRE_LOCK, TRY_RELEASE_LOCK);
+
+      final byte[] lockName = RESP.toBytes("mylock");
+      final byte[] ownerId = RESP.toBytes("myOwnerId");
+      final byte[] pexpire = RESP.toBytes(3000);
+
+      final List<Object> lockOwners = (List<Object>) TRY_ACQUIRE_LOCK.eval(jce, numRetries, numKeys,
+          lockName, ownerId, pexpire);
+
+      // final byte[] previousOwner = (byte[]) lockOwners.get(0);
+      final byte[] currentOwner = (byte[]) lockOwners.get(1);
+      final long pttl = (long) lockOwners.get(2);
+
+      System.out.format("'%s' has lock '%s' for %dms.%n", RESP.toString(currentOwner),
+          RESP.toString(lockName), pttl);
+
+      final long released =
+          (long) TRY_RELEASE_LOCK.eval(jce, numRetries, numKeys, lockName, ownerId);
+      if (released == 1) {
+        System.out.format("Lock was released by '%s'.%n", RESP.toString(ownerId));
+      } else {
+        System.out.format("Lock was no longer owned by '%s'.%n", RESP.toString(ownerId));
+      }
+    } catch (final IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+```
+
+TRY_ACQUIRE_LOCK.lua
+```lua
+-- Returns the previous owner, the current owner and the pttl for the lock.
+-- Returns either {null, lockOwner, pexpire}, {owner, owner, pexpire} or {owner, owner, pttl}.
+-- The previous owner is null if 'lockOwner' newly acquired the lock. Otherwise, the previous
+--   owner will be same value as the current owner. If the current owner is equal to the supplied
+--   'lockOwner' argument then the ownership claim will remain active for 'pexpire' milliseconds.
+
+local lockName = KEYS[1];
+local lockOwner = ARGV[1];
+
+local owner = redis.call('get', lockName);
+
+if not owner then
+
+   local pexpire = tonumber(ARGV[2]);
+
+   redis.call('psetex', lockName, pexpire, lockOwner);
+   return {owner, lockOwner, pexpire};
+end
+
+if owner == lockOwner then
+
+   local pexpire = tonumber(ARGV[2]);
+
+   if redis.call('pexpire', lockName, pexpire) == 0 then
+      redis.call('psetex', lockName, pexpire, lockOwner)
+   end
+
+   return {owner, owner, pexpire};
+end
+
+return {owner, owner, redis.call('pttl', lockName)};
+```
+
+TRY_RELEASE_LOCK.lua
+```lua
+local lockName = KEYS[1];
+local lockOwner = ARGV[1];
+
+if redis.call('get', lockName) == lockOwner then
+   return redis.call('del', lockOwner);
+end
+
+return -1;
+```
+
 ###Dependency Management
 ####Gradle
 ```groovy
