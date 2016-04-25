@@ -15,7 +15,7 @@ branches:
     - /^jedipus-.*$/
 
 env:
-   - GRADLE_VERSION="2.13-rc-2"
+   - GRADLE_VERSION="2.13"
 
 before_install:
    - wget http://services.gradle.org/distributions/gradle-$GRADLE_VERSION-bin.zip

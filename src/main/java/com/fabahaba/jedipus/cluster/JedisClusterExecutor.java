@@ -26,9 +26,11 @@ public class JedisClusterExecutor implements Closeable {
   private static final int DEFAULT_TIMEOUT = 2000;
   private static final int DEFAULT_MAX_REDIRECTIONS = 5;
   private static final int DEFAULT_MAX_RETRIES = 2;
+  private static final int DEFAULT_TRY_RANDOM_AFTER = 1;
 
   private final int maxRedirections;
   private final int maxRetries;
+  private final int tryRandomAfter;
 
   private final JedisClusterConnHandler connectionHandler;
 
@@ -40,30 +42,33 @@ public class JedisClusterExecutor implements Closeable {
   public JedisClusterExecutor(final Collection<HostAndPort> discoveryNodes, final int timeout) {
 
     this(discoveryNodes, timeout, DEFAULT_MAX_REDIRECTIONS, DEFAULT_MAX_RETRIES,
-        new GenericObjectPoolConfig());
+        DEFAULT_TRY_RANDOM_AFTER, new GenericObjectPoolConfig());
   }
 
   public JedisClusterExecutor(final Collection<HostAndPort> discoveryNodes, final int timeout,
-      final int maxRedirections, final int maxRetries, final GenericObjectPoolConfig poolConfig) {
+      final int maxRedirections, final int maxRetries, final int tryRandomAfter,
+      final GenericObjectPoolConfig poolConfig) {
 
-    this(discoveryNodes, timeout, timeout, maxRedirections, maxRetries, poolConfig);
+    this(discoveryNodes, timeout, timeout, maxRedirections, maxRetries, tryRandomAfter, poolConfig);
   }
 
   public JedisClusterExecutor(final Collection<HostAndPort> discoveryNodes,
       final int connectionTimeout, final int soTimeout, final int maxRedirections,
-      final int maxRetries, final GenericObjectPoolConfig poolConfig) {
+      final int maxRetries, final int tryRandomAfter, final GenericObjectPoolConfig poolConfig) {
 
-    this(discoveryNodes, maxRedirections, maxRetries, node -> new JedisPool(poolConfig,
-        node.getHost(), node.getPort(), connectionTimeout, soTimeout, null, 0, null));
+    this(discoveryNodes, maxRedirections, maxRetries, tryRandomAfter,
+        node -> new JedisPool(poolConfig, node.getHost(), node.getPort(), connectionTimeout,
+            soTimeout, null, 0, null));
   }
 
   public JedisClusterExecutor(final Collection<HostAndPort> discoveryNodes,
-      final int maxRedirections, final int maxRetries,
+      final int maxRedirections, final int maxRetries, final int tryRandomAfter,
       final Function<HostAndPort, JedisPool> jedisPoolFactory) {
 
     this.connectionHandler = new JedisClusterConnHandler(discoveryNodes, jedisPoolFactory);
     this.maxRedirections = maxRedirections;
     this.maxRetries = maxRetries;
+    this.tryRandomAfter = tryRandomAfter;
   }
 
   public int getMaxRedirections() {
@@ -278,7 +283,7 @@ public class JedisClusterExecutor implements Closeable {
 
           if (asking == null) {
 
-            connection = retries > 1 ? connectionHandler.getConnection()
+            connection = retries > tryRandomAfter ? connectionHandler.getConnection()
                 : connectionHandler.getConnectionFromSlot(slot);
             return jedisConsumer.apply(connection);
           }
