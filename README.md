@@ -9,7 +9,7 @@
 * Re-uses the work already done on Jedis clients to support pipelining and transactions.  Remember that all keys must share the same hash slot, instead of validating this, Jedipus trusts the user in order to avoid unnecessary overhead.
 * Minimal dependency tree (Jedipus -> Jedis -> org.apache.commons:commons-pool2).
 * Utilities to manage and execute Lua scripts.
-* Optional user supplied HostAndPort -> JedisPool factories.  Useful for client side ip/port mapping or using different pool sizes per node.
+* Optional user supplied HostAndPort -> JedisPool factories.  Useful for client side ip/port mapping or dynamic pool sizes.
 
 ###Basic Usage Example
 ```java
@@ -99,8 +99,7 @@ public final class RedisLock {
       System.out.format("'%s' has lock '%s' for %dms.%n", RESP.toString(currentOwner),
           RESP.toString(lockName), pttl);
 
-      final long released =
-          (long) TRY_RELEASE_LOCK.eval(jce, 1, lockName, ownerId);
+      final long released = (long) TRY_RELEASE_LOCK.eval(jce, 1, lockName, ownerId);
 
       if (released == 1) {
         // Lock was released by 'myOwnerId'.
@@ -127,23 +126,13 @@ local lockOwner = ARGV[1];
 
 local owner = redis.call('get', lockName);
 
-if not owner then
+if not owner or owner == lockOwner then
 
-   local pexpire = tonumber(ARGV[2]);
+   local px = tonumber(ARGV[2]);
 
-   redis.call('psetex', lockName, pexpire, lockOwner);
-   return {owner, lockOwner, pexpire};
-end
+   redis.call('set', lockName, lockOwner, 'PX', px);
 
-if owner == lockOwner then
-
-   local pexpire = tonumber(ARGV[2]);
-
-   if redis.call('pexpire', lockName, pexpire) == 0 then
-      redis.call('psetex', lockName, pexpire, lockOwner)
-   end
-
-   return {owner, owner, pexpire};
+   return {owner, lockOwner, px};
 end
 
 return {owner, owner, redis.call('pttl', lockName)};
