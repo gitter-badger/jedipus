@@ -39,16 +39,40 @@ public interface LuaScript {
     }
   }
 
+  default Object eval(final JedisClusterExecutor jedisExecutor, final int keyCount,
+      final byte[]... params) {
+
+    return eval(jedisExecutor, jedisExecutor.getMaxRetries(), keyCount, params);
+  }
+
   public Object eval(final JedisClusterExecutor jedisExecutor, final int numRetries,
       final int keyCount, final byte[]... params);
+
+  default Object eval(final JedisClusterExecutor jedisExecutor, final List<byte[]> keys,
+      final List<byte[]> args) {
+
+    return eval(jedisExecutor, jedisExecutor.getMaxRetries(), keys, args);
+  }
 
   public Object eval(final JedisClusterExecutor jedisExecutor, final int numRetries,
       final List<byte[]> keys, final List<byte[]> args);
 
-  public Object eval(final JedisClusterExecutor jedisExecutor, final int numRetries,
-      final int keyCount, final int slot, final byte[]... params);
+  default Object eval(final int slot, final JedisClusterExecutor jedisExecutor, final int keyCount,
+      final byte[]... params) {
 
-  public Object eval(final JedisClusterExecutor jedisExecutor, final int numRetries, final int slot,
+    return eval(slot, jedisExecutor, jedisExecutor.getMaxRetries(), keyCount, params);
+  }
+
+  public Object eval(final int slot, final JedisClusterExecutor jedisExecutor, final int numRetries,
+      final int keyCount, final byte[]... params);
+
+  default Object eval(final int slot, final JedisClusterExecutor jedisExecutor,
+      final List<byte[]> keys, final List<byte[]> args) {
+
+    return eval(slot, jedisExecutor, jedisExecutor.getMaxRetries(), keys, args);
+  }
+
+  public Object eval(final int slot, final JedisClusterExecutor jedisExecutor, final int numRetries,
       final List<byte[]> keys, final List<byte[]> args);
 
   public static void loadMissingScripts(final JedisClusterExecutor jedisExecutor,

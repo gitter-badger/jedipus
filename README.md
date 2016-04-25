@@ -26,9 +26,10 @@ try (final JedisClusterExecutor jce = new JedisClusterExecutor(discoveryNodes)) 
   final String hashTag = RCUtils.createNameSpacedHashTag("HT");
   final int slot = JedisClusterCRC16.getSlot(hashTag);
 
-  final List<Response<?>> results = new ArrayList<>(2);
   final String hashTaggedKey = hashTag + "key";
   final String fooKey = hashTag + "foo";
+
+  final List<Response<?>> results = new ArrayList<>(2);
 
   jce.acceptPipelinedTransaction(slot, pipeline -> {
 
@@ -79,9 +80,6 @@ public final class RedisLock {
     final Collection<HostAndPort> discoveryNodes =
         Collections.singleton(new HostAndPort("127.0.0.1", 7000));
 
-    final int numRetries = 1;
-    final int numKeys = 1;
-
     try (final JedisClusterExecutor jce = new JedisClusterExecutor(discoveryNodes)) {
 
       LuaScript.loadMissingScripts(jce, TRY_ACQUIRE_LOCK, TRY_RELEASE_LOCK);
@@ -90,7 +88,7 @@ public final class RedisLock {
       final byte[] ownerId = RESP.toBytes("myOwnerId");
       final byte[] pexpire = RESP.toBytes(3000);
 
-      final List<Object> lockOwners = (List<Object>) TRY_ACQUIRE_LOCK.eval(jce, numRetries, numKeys,
+      final List<Object> lockOwners = (List<Object>) TRY_ACQUIRE_LOCK.eval(jce, 1,
           lockName, ownerId, pexpire);
 
       // final byte[] previousOwner = (byte[]) lockOwners.get(0);
@@ -102,7 +100,7 @@ public final class RedisLock {
           RESP.toString(lockName), pttl);
 
       final long released =
-          (long) TRY_RELEASE_LOCK.eval(jce, numRetries, numKeys, lockName, ownerId);
+          (long) TRY_RELEASE_LOCK.eval(jce, 1, lockName, ownerId);
 
       if (released == 1) {
         // Lock was released by 'myOwnerId'.

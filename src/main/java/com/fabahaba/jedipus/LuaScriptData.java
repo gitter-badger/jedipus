@@ -43,7 +43,7 @@ public class LuaScriptData implements LuaScript {
 
   public static LuaScriptData fromResourcePath(final String resourcePath) {
 
-    try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+    try (final BufferedReader reader = new BufferedReader(new InputStreamReader(
         LuaScriptData.class.getResourceAsStream(resourcePath), StandardCharsets.UTF_8))) {
 
       final String luaScript = reader.lines().filter(l -> !l.isEmpty() && !l.contains("--"))
@@ -99,16 +99,16 @@ public class LuaScriptData implements LuaScript {
   }
 
   @Override
-  public Object eval(final JedisClusterExecutor jedisExecutor, final int numRetries,
-      final int keyCount, final int slot, final byte[]... params) {
+  public Object eval(final int slot, final JedisClusterExecutor jedisExecutor, final int numRetries,
+      final int keyCount, final byte[]... params) {
 
     return jedisExecutor.applyJedis(slot, jedis -> jedis.evalsha(sha1HexBytes, keyCount, params),
         numRetries);
   }
 
   @Override
-  public Object eval(final JedisClusterExecutor jedisExecutor, final int numRetries,
-      final int slot, final List<byte[]> keys, final List<byte[]> args) {
+  public Object eval(final int slot, final JedisClusterExecutor jedisExecutor, final int numRetries,
+      final List<byte[]> keys, final List<byte[]> args) {
 
     return jedisExecutor.applyJedis(slot, jedis -> jedis.evalsha(sha1HexBytes, keys, args),
         numRetries);

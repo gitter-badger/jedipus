@@ -66,6 +66,14 @@ public class JedisClusterExecutor implements Closeable {
     this.maxRetries = maxRetries;
   }
 
+  public int getMaxRedirections() {
+    return maxRedirections;
+  }
+
+  public int getMaxRetries() {
+    return maxRetries;
+  }
+
   public void acceptJedis(final byte[] slotKey, final Consumer<Jedis> jedisConsumer) {
 
     acceptJedis(slotKey, jedisConsumer, maxRetries);
