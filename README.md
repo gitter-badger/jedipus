@@ -55,7 +55,9 @@ try (final JedisClusterExecutor jce = new JedisClusterExecutor(discoveryNodes)) 
   System.out.format("%n'%s': [%s]%n", fooKey, values);
 
   // cleanup
-  jce.acceptJedis(slot, jedis -> jedis.del(hashTaggedKey, fooKey));
+  final long numRemoved = jce.applyJedis(slot, jedis -> jedis.del(hashTaggedKey, fooKey));
+  // Removed 2 keys.
+  System.out.format("%nRemoved %d keys.%n", numRemoved);
 } catch (final IOException e) {
   throw new UncheckedIOException(e);
 }
