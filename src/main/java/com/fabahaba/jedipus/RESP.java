@@ -21,14 +21,29 @@ public final class RESP {
     return string.getBytes(StandardCharsets.UTF_8);
   }
 
+  public static String toString(final Object bytes) {
+
+    return toString((byte[]) bytes);
+  }
+
   public static String toString(final byte[] bytes) {
 
     return new String(bytes, StandardCharsets.UTF_8);
   }
 
+  public static Integer toInt(final Object bytes) {
+
+    return Integer.parseInt(toString(bytes));
+  }
+
   public static Integer toInt(final byte[] bytes) {
 
     return Integer.parseInt(toString(bytes));
+  }
+
+  public static Long toLong(final Object bytes) {
+
+    return Long.parseLong(toString(bytes));
   }
 
   public static Long toLong(final byte[] bytes) {

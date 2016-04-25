@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.locks.StampedLock;
 import java.util.function.Function;
@@ -138,15 +139,14 @@ final class JedisClusterSlotCache implements Closeable {
         }
       }
 
-      stalePools.stream().map(nodes::remove).forEach(pool -> {
+      stalePools.stream().map(nodes::remove).filter(Objects::nonNull).forEach(pool -> {
         try {
-          if (pool != null) {
-            pool.destroy();
-          }
-        } catch (final Exception e) {
+          pool.destroy();
+        } catch (final RuntimeException e) {
           // closing anyways...
         }
-      });;
+      });
+
       slotDiscoveryCnt++;
     } finally {
       lock.unlockWrite(writeStamp);
@@ -155,8 +155,7 @@ final class JedisClusterSlotCache implements Closeable {
 
   private static HostAndPort generateHostAndPort(final List<Object> hostInfos) {
 
-    return new HostAndPort(RESP.toString((byte[]) hostInfos.get(0)),
-        ((Long) hostInfos.get(1)).intValue());
+    return new HostAndPort(RESP.toString(hostInfos.get(0)), ((Long) hostInfos.get(1)).intValue());
   }
 
   JedisPool setNodeIfNotExist(final HostAndPort node) {
