@@ -29,6 +29,7 @@ final class JedisClusterSlotCache implements Closeable {
   private final JedisPool[] slots;
 
   private final StampedLock lock;
+  private volatile int slotDiscoveryCnt = 0;
 
   private final Function<HostAndPort, JedisPool> jedisPoolFactory;
 
@@ -98,11 +99,17 @@ final class JedisClusterSlotCache implements Closeable {
   @SuppressWarnings("unchecked")
   void discoverClusterSlots(final Jedis jedis) {
 
+    final int dedupeDiscovery = slotDiscoveryCnt;
     final long writeStamp = lock.writeLock();
     try {
 
-      nodes.clear();
+      if (dedupeDiscovery != slotDiscoveryCnt) {
+        return;
+      }
+
       Arrays.fill(slots, null);
+
+      final Set<HostAndPort> stalePools = new HashSet<>(nodes.keySet());
 
       final List<Object> slots = jedis.clusterSlots();
 
@@ -119,17 +126,28 @@ final class JedisClusterSlotCache implements Closeable {
 
           final HostAndPort targetNode = generateHostAndPort(hostInfos);
           discoveryNodes.add(targetNode);
+          stalePools.remove(targetNode);
 
           if (i == MASTER_NODE_INDEX) {
 
-            final JedisPool targetPool = jedisPoolFactory.apply(targetNode);
-            nodes.put(targetNode, targetPool);
+            final JedisPool targetPool = nodes.computeIfAbsent(targetNode, jedisPoolFactory);
 
             Arrays.fill(this.slots, ((Long) slotInfo.get(0)).intValue(),
                 ((Long) slotInfo.get(1)).intValue(), targetPool);
           }
         }
       }
+
+      stalePools.stream().map(nodes::remove).forEach(pool -> {
+        try {
+          if (pool != null) {
+            pool.destroy();
+          }
+        } catch (final Exception e) {
+          // closing anyways...
+        }
+      });;
+      slotDiscoveryCnt++;
     } finally {
       lock.unlockWrite(writeStamp);
     }

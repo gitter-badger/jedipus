@@ -1,5 +1,8 @@
-<FindBugsFilter>   
+<FindBugsFilter>
 	<Match>
 		<Bug pattern="EI_EXPOSE_REP" />
+	</Match>
+	<Match>
+		<Bug pattern="VO_VOLATILE_INCREMENT" />
 	</Match>
 </FindBugsFilter>
