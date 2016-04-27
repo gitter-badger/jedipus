@@ -622,12 +622,12 @@ final class JedisClusterSlotCache implements Closeable {
       });
 
       slavePools.clear();
-
-      if (roInitializedClients != null) {
-        roInitializedClients.clear();
-      }
     } finally {
       lock.unlockWrite(writeStamp);
+    }
+
+    if (roInitializedClients != null) {
+      roInitializedClients.clear();
     }
   }
 }

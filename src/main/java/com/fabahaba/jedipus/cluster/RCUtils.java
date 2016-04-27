@@ -20,4 +20,20 @@ public final class RCUtils {
 
     return createHashTag(shardKey) + namespaceDelim;
   }
+
+  public static String prefixHashTag(final String shardKey, final String postFix) {
+
+    return createHashTag(shardKey) + postFix;
+  }
+
+  public static String prefixNameSpacedHashTag(final String shardKey, final String postFix) {
+
+    return prefixNameSpacedHashTag(shardKey, NAMESPACE_DELIM, postFix);
+  }
+
+  public static String prefixNameSpacedHashTag(final String shardKey, final String namespaceDelim,
+      final String postFix) {
+
+    return createNameSpacedHashTag(shardKey, namespaceDelim) + postFix;
+  }
 }
