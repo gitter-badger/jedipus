@@ -1,6 +1,6 @@
 ##Jedipus [![Build Status](https://travis-ci.org/jamespedwards42/jedipus.svg?branch=master)](https://travis-ci.org/jamespedwards42/jedipus) [![JCenter](https://api.bintray.com/packages/jamespedwards42/libs/jedipus/images/download.svg) ](https://bintray.com/jamespedwards42/libs/jedipus/_latestVersion) [![License](http://img.shields.io/badge/license-Apache--2-blue.svg?style=flat) ](http://www.apache.org/licenses/LICENSE-2.0)
 
->Jedipus is a Redis Cluster Java client that manages JedisPool's against masters of the cluster.
+>Jedipus is a Redis Cluster Java client that manages JedisPool's.
 
 ######Features
 * Execute Jedis Consumer and Function Java 8 Lambas against a Redis Cluster.
@@ -10,15 +10,15 @@
 * Minimal dependency tree (Jedipus -> Jedis -> org.apache.commons:commons-pool2).
 * Utilities to manage and execute Lua scripts.
 * Optional user supplied master and slave HostAndPort -> JedisPool factories.  Useful for client side ip/port mapping or dynamic pool sizes.
-* Optional user supplied slave JedisPool[] -> LoadBalancedPools factories.  By default, a round robin strategy is used.
+* Load balance readonly requests across pools.  Optional user supplied slave JedisPool[] -> LoadBalancedPools factories.  By default, a round robin strategy is used.
 
 ######Read Modes
 >Read modes control how pools to master and slave nodes are managed.
 
 * MASTER: Only pools to master nodes are maintained.  
 * SLAVES: Only pools to slave nodes are maintained. Calls are load balanced across slave pools.
-* MIXED_SLAVES: Pools are managed for both masters and slave nodes.  Calls are only load balanced across slave pools. Individual calls can be overridden with `ReadMode.MASTER` or `ReadMode.SLAVES`.  When no slave pools are available it will use the master pool.
-* MIXED: Pools are managed for both masters and slave nodes.  Calls are load balanced across both master and slave pools. Individual calls can be overridden with `ReadMode.MASTER` or `ReadMode.SLAVES`.  When overriding with `ReadMode.SLAVES` and no slave pools are available it will use the master pool.
+* MIXED_SLAVES: Pools are managed for both masters and slave nodes.  Calls are only load balanced across slave pools. Individual calls can be overridden with `ReadMode.MASTER` or `ReadMode.SLAVES`.  When no slave pools are available the master pool is used.
+* MIXED: Pools are managed for both masters and slave nodes.  Calls are load balanced across both master and slave pools. Individual calls can be overridden with `ReadMode.MASTER` or `ReadMode.SLAVES`.  When overriding with `ReadMode.SLAVES` and no slave pools are available the master pool is used.
 
 #####Basic Usage Example
 ```java
