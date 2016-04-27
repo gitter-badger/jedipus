@@ -59,11 +59,23 @@ public final class JedisClusterExecutor implements Closeable {
     this.tryRandomAfter = tryRandomAfter;
   }
 
+  public ReadMode getDefaultReadMode() {
+
+    return connHandler.getDefaultReadMode();
+  }
+
+  public boolean isInitReadOnly() {
+
+    return connHandler.isInitReadOnly();
+  }
+
   public int getMaxRedirections() {
+
     return maxRedirections;
   }
 
   public int getMaxRetries() {
+
     return maxRetries;
   }
 

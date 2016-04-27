@@ -33,6 +33,11 @@ class JedisClusterConnHandler implements Closeable {
     return cache.getDefaultReadMode();
   }
 
+  boolean isInitReadOnly() {
+
+    return cache.isInitReadOnly();
+  }
+
   Jedis getConnection(final ReadMode readMode) {
 
     return getConnection(readMode, -1);

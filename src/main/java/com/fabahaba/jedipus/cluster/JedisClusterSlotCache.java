@@ -281,7 +281,7 @@ final class JedisClusterSlotCache implements Closeable {
         }
       });
 
-      if (roInitializedClients != null) {
+      if (isInitReadOnly()) {
         roInitializedClients.forEach((client, isRO) -> {
           if (!client.isConnected()) {
             roInitializedClients.remove(client);
@@ -367,7 +367,7 @@ final class JedisClusterSlotCache implements Closeable {
       case MIXED_SLAVES:
       case SLAVES:
         final Jedis jedis = pool.getResource();
-        if (roInitializedClients == null || jedis == null) {
+        if (!isInitReadOnly() || jedis == null) {
           return jedis;
         }
 
@@ -593,6 +593,11 @@ final class JedisClusterSlotCache implements Closeable {
     return discoveryHostPorts;
   }
 
+  boolean isInitReadOnly() {
+
+    return roInitializedClients != null;
+  }
+
   @Override
   public void close() throws IOException {
 
@@ -626,7 +631,7 @@ final class JedisClusterSlotCache implements Closeable {
       lock.unlockWrite(writeStamp);
     }
 
-    if (roInitializedClients != null) {
+    if (isInitReadOnly()) {
       roInitializedClients.clear();
     }
   }
