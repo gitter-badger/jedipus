@@ -69,13 +69,9 @@ try (final JedisClusterExecutor jce = JedisClusterExecutor.startBuilding()
    System.out.format("%n'%s': [%s]%n", fooKey, values);
 
    // Read from load balanced slave.
-   final String result = jce.applyJedis(ReadMode.SLAVES, slot, jedis -> {
-     jedis.readonly();
-     return jedis.get(hashTaggedKey);
-   });
-
-   // '{HT}:key': value
-   System.out.format("%n'%s': %s%n", hashTaggedKey, result);
+   final String roResult =
+          jce.applyJedis(ReadMode.SLAVES, slot, jedis -> jedis.get(hashTaggedKey));
+   System.out.format("%n'%s': %s%n", hashTaggedKey, roResult);
 
    // cleanup
    final long numRemoved =

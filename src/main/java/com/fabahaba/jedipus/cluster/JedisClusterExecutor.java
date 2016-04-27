@@ -49,10 +49,10 @@ public final class JedisClusterExecutor implements Closeable {
       final int maxRetries, final int tryRandomAfter,
       final Function<HostAndPort, JedisPool> masterPoolFactory,
       final Function<HostAndPort, JedisPool> slavePoolFactory,
-      final Function<JedisPool[], LoadBalancedPools> lbFactory) {
+      final Function<JedisPool[], LoadBalancedPools> lbFactory, final boolean initReadOnly) {
 
     this.connHandler = new JedisClusterConnHandler(defaultReadMode, discoveryHostPorts,
-        masterPoolFactory, slavePoolFactory, lbFactory);
+        masterPoolFactory, slavePoolFactory, lbFactory, initReadOnly);
 
     this.maxRedirections = maxRedirections;
     this.maxRetries = maxRetries;
@@ -553,6 +553,7 @@ public final class JedisClusterExecutor implements Closeable {
     private Function<HostAndPort, JedisPool> masterPoolFactory;
     private Function<HostAndPort, JedisPool> slavePoolFactory;
     private Function<JedisPool[], LoadBalancedPools> lbFactory;
+    private boolean initReadOnly;
 
     private Builder() {}
 
@@ -576,7 +577,7 @@ public final class JedisClusterExecutor implements Closeable {
       }
 
       return new JedisClusterExecutor(readMode, discoveryHostPorts, maxRedirections, maxRetries,
-          tryRandomAfter, masterPoolFactory, slavePoolFactory, lbFactory);
+          tryRandomAfter, masterPoolFactory, slavePoolFactory, lbFactory, initReadOnly);
     }
 
     public ReadMode getReadMode() {
@@ -673,8 +674,18 @@ public final class JedisClusterExecutor implements Closeable {
       return lbFactory;
     }
 
-    public void setLbFactory(final Function<JedisPool[], LoadBalancedPools> lbFactory) {
+    public Builder withLbFactory(final Function<JedisPool[], LoadBalancedPools> lbFactory) {
       this.lbFactory = lbFactory;
+      return this;
+    }
+
+    public boolean isInitReadOnly() {
+      return initReadOnly;
+    }
+
+    public Builder withInitReadOnly(final boolean initReadOnly) {
+      this.initReadOnly = initReadOnly;
+      return this;
     }
   }
 }

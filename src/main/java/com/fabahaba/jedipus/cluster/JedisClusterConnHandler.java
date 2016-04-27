@@ -22,10 +22,10 @@ class JedisClusterConnHandler implements Closeable {
       final Collection<HostAndPort> discoveryHostPorts,
       final Function<HostAndPort, JedisPool> masterPoolFactory,
       final Function<HostAndPort, JedisPool> slavePoolFactory,
-      final Function<JedisPool[], LoadBalancedPools> lbFactory) {
+      final Function<JedisPool[], LoadBalancedPools> lbFactory, final boolean initReadOnly) {
 
     this.cache = JedisClusterSlotCache.create(defaultReadMode, discoveryHostPorts,
-        masterPoolFactory, slavePoolFactory, lbFactory);
+        masterPoolFactory, slavePoolFactory, lbFactory, initReadOnly);
   }
 
   ReadMode getDefaultReadMode() {
@@ -35,10 +35,22 @@ class JedisClusterConnHandler implements Closeable {
 
   Jedis getConnection(final ReadMode readMode) {
 
+    return getConnection(readMode, -1);
+  }
+
+  Jedis getConnection(final ReadMode readMode, final int slot) {
+
     List<JedisPool> shuffledPools = cache.getShuffledPools(readMode);
     if (shuffledPools.isEmpty()) {
 
       renewSlotCache(readMode);
+      if (slot >= 0) {
+        final Jedis jedis = cache.getSlotConnection(readMode, slot);
+        if (jedis != null) {
+          return jedis;
+        }
+      }
+
       shuffledPools = cache.getShuffledPools(readMode);
     }
 
@@ -69,9 +81,9 @@ class JedisClusterConnHandler implements Closeable {
 
   Jedis getConnectionFromSlot(final ReadMode readMode, final int slot) {
 
-    final JedisPool connectionPool = cache.getSlotPool(readMode, slot);
+    final Jedis jedis = cache.getSlotConnection(readMode, slot);
 
-    return connectionPool == null ? getConnection(readMode) : connectionPool.getResource();
+    return jedis == null ? getConnection(readMode, slot) : jedis;
   }
 
   Jedis getAskJedis(final HostAndPort hostPort) {

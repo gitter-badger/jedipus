@@ -12,6 +12,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.StampedLock;
 import java.util.function.Function;
 
@@ -37,6 +39,8 @@ final class JedisClusterSlotCache implements Closeable {
   private final Map<HostAndPort, JedisPool> slavePools;
   private final LoadBalancedPools[] slaveSlots;
 
+  private final ConcurrentMap<Jedis, Boolean> roInitializedClients;
+
   private final StampedLock lock;
   private volatile int slotDiscoveryCnt = 0;
 
@@ -50,7 +54,7 @@ final class JedisClusterSlotCache implements Closeable {
       final Map<HostAndPort, JedisPool> slavePools, final LoadBalancedPools[] slaveSlots,
       final Function<HostAndPort, JedisPool> masterPoolFactory,
       final Function<HostAndPort, JedisPool> slavePoolFactory,
-      final Function<JedisPool[], LoadBalancedPools> lbFactory) {
+      final Function<JedisPool[], LoadBalancedPools> lbFactory, final boolean initReadOnly) {
 
     this.defaultReadMode = readMode;
     this.discoveryHostPorts = discoveryNodes;
@@ -60,6 +64,9 @@ final class JedisClusterSlotCache implements Closeable {
 
     this.slavePools = slavePools;
     this.slaveSlots = slaveSlots;
+
+    this.roInitializedClients =
+        !initReadOnly || defaultReadMode == ReadMode.MASTER ? null : new ConcurrentHashMap<>();
 
     this.lock = new StampedLock();
 
@@ -77,7 +84,7 @@ final class JedisClusterSlotCache implements Closeable {
       final Collection<HostAndPort> discoveryHostPorts,
       final Function<HostAndPort, JedisPool> masterPoolFactory,
       final Function<HostAndPort, JedisPool> slavePoolFactory,
-      final Function<JedisPool[], LoadBalancedPools> lbFactory) {
+      final Function<JedisPool[], LoadBalancedPools> lbFactory, final boolean initReadOnly) {
 
     final Map<HostAndPort, JedisPool> masterPools =
         readMode == ReadMode.SLAVES ? Collections.emptyMap() : new HashMap<>();
@@ -90,7 +97,7 @@ final class JedisClusterSlotCache implements Closeable {
         : new LoadBalancedPools[BinaryJedisCluster.HASHSLOTS];
 
     return create(readMode, discoveryHostPorts, masterPoolFactory, slavePoolFactory, lbFactory,
-        masterPools, masterSlots, slavePools, slaveSlots);
+        masterPools, masterSlots, slavePools, slaveSlots, initReadOnly);
   }
 
   @SuppressWarnings("unchecked")
@@ -99,9 +106,9 @@ final class JedisClusterSlotCache implements Closeable {
       final Function<HostAndPort, JedisPool> masterPoolFactory,
       final Function<HostAndPort, JedisPool> slavePoolFactory,
       final Function<JedisPool[], LoadBalancedPools> lbFactory,
-
       final Map<HostAndPort, JedisPool> masterPools, final JedisPool[] masterSlots,
-      final Map<HostAndPort, JedisPool> slavePools, final LoadBalancedPools[] slaveSlots) {
+      final Map<HostAndPort, JedisPool> slavePools, final LoadBalancedPools[] slaveSlots,
+      final boolean initReadOnly) {
 
     final Set<HostAndPort> allDiscoveryHostPorts = new HashSet<>(discoveryHostPorts);
 
@@ -171,14 +178,14 @@ final class JedisClusterSlotCache implements Closeable {
         }
 
         return new JedisClusterSlotCache(readMode, allDiscoveryHostPorts, masterPools, masterSlots,
-            slavePools, slaveSlots, masterPoolFactory, slavePoolFactory, lbFactory);
+            slavePools, slaveSlots, masterPoolFactory, slavePoolFactory, lbFactory, initReadOnly);
       } catch (final JedisConnectionException e) {
         // try next discoveryNode...
       }
     }
 
     return new JedisClusterSlotCache(readMode, allDiscoveryHostPorts, masterPools, masterSlots,
-        slavePools, slaveSlots, masterPoolFactory, slavePoolFactory, lbFactory);
+        slavePools, slaveSlots, masterPoolFactory, slavePoolFactory, lbFactory, initReadOnly);
   }
 
   @SuppressWarnings("unchecked")
@@ -260,7 +267,7 @@ final class JedisClusterSlotCache implements Closeable {
 
       staleMasterPools.stream().map(masterPools::remove).filter(Objects::nonNull).forEach(pool -> {
         try {
-          pool.destroy();
+          pool.close();
         } catch (final RuntimeException e) {
           // closing anyways...
         }
@@ -268,11 +275,19 @@ final class JedisClusterSlotCache implements Closeable {
 
       staleSlavePools.stream().map(slavePools::remove).filter(Objects::nonNull).forEach(pool -> {
         try {
-          pool.destroy();
+          pool.close();
         } catch (final RuntimeException e) {
           // closing anyways...
         }
       });
+
+      if (roInitializedClients != null) {
+        roInitializedClients.forEach((j, isRO) -> {
+          if (!j.isConnected()) {
+            roInitializedClients.remove(j);
+          }
+        });
+      }
 
       slotDiscoveryCnt++;
     } finally {
@@ -322,15 +337,52 @@ final class JedisClusterSlotCache implements Closeable {
         : pool.getResource();
   }
 
-  JedisPool getSlotPool(final ReadMode readMode, final int slot) {
+  Jedis getSlotConnection(final ReadMode readMode, final int slot) {
+
+    JedisPool pool = null;
 
     switch (defaultReadMode) {
       case MASTER:
+        pool = getSlotPoolModeChecked(defaultReadMode, slot);
+        return pool == null ? null : pool.getResource();
       case SLAVES:
-        return getSlotPoolModeChecked(defaultReadMode, slot);
+        pool = getSlotPoolModeChecked(defaultReadMode, slot);
       case MIXED:
       case MIXED_SLAVES:
-        return getSlotPoolModeChecked(readMode, slot);
+        pool = getSlotPoolModeChecked(readMode, slot);
+        break;
+      default:
+        return null;
+    }
+
+    if (pool == null) {
+      return null;
+    }
+
+    switch (readMode) {
+      case MASTER:
+        return pool.getResource();
+      case MIXED:
+      case MIXED_SLAVES:
+      case SLAVES:
+        final Jedis jedis = pool.getResource();
+        if (roInitializedClients == null || jedis == null) {
+          return jedis;
+        }
+
+        roInitializedClients.compute(jedis, (k, isRO) -> {
+          if (isRO == null) {
+            synchronized (jedis) {
+              if (!roInitializedClients.containsKey(jedis)) {
+                jedis.readonly();
+              }
+            }
+          }
+
+          return Boolean.TRUE;
+        });
+
+        return jedis;
       default:
         return null;
     }
@@ -549,7 +601,7 @@ final class JedisClusterSlotCache implements Closeable {
       masterPools.forEach((key, pool) -> {
         try {
           if (pool != null) {
-            pool.destroy();
+            pool.close();
           }
         } catch (final Exception e) {
           // closing anyways...
@@ -561,7 +613,7 @@ final class JedisClusterSlotCache implements Closeable {
       slavePools.forEach((key, pool) -> {
         try {
           if (pool != null) {
-            pool.destroy();
+            pool.close();
           }
         } catch (final Exception e) {
           // closing anyways...
@@ -569,6 +621,10 @@ final class JedisClusterSlotCache implements Closeable {
       });
 
       slavePools.clear();
+
+      if (roInitializedClients != null) {
+        roInitializedClients.clear();
+      }
     } finally {
       lock.unlockWrite(writeStamp);
     }
