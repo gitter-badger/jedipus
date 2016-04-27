@@ -68,6 +68,15 @@ try (final JedisClusterExecutor jce = JedisClusterExecutor.startBuilding()
    // '{HT}:foo': [barikoviev (0.0), barinsky (0.0), barowitch (1.0)]
    System.out.format("%n'%s': [%s]%n", fooKey, values);
 
+   // Read from load balanced slave.
+   final String result = jce.applyJedis(ReadMode.SLAVES, slot, jedis -> {
+     jedis.readonly();
+     return jedis.get(hashTaggedKey);
+   });
+
+   // '{HT}:key': value
+   System.out.format("%n'%s': %s%n", hashTaggedKey, result);
+
    // cleanup
    final long numRemoved =
        jce.applyJedis(ReadMode.MASTER, slot, jedis -> jedis.del(hashTaggedKey, fooKey));
