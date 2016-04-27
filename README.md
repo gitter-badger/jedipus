@@ -20,7 +20,7 @@
 * MIXED_SLAVES: Pools are managed for both masters and slave nodes.  Calls are only load balanced across slave pools.  Individual calls can override the read mode with `ReadMode.MASTER` or `ReadMode.SlAVE`.
 * MIXED:  Pools are managed for both masters and slave nodes.  Calls are load balanced across both master and slave pools. Individual calls can override the read mode with `ReadMode.MASTER` or `ReadMode.SlAVE`.
 
-###Basic Usage Example
+#####Basic Usage Example
 ```java
 final Collection<HostAndPort> discoveryHostPorts =
     Collections.singleton(new HostAndPort("127.0.0.1", 7000));
@@ -77,7 +77,7 @@ try (final JedisClusterExecutor jce = JedisClusterExecutor.startBuilding()
 }
 ```
 
-###Redis Lock Lua Example
+#####Redis Lock Lua Example
 
 ```java
 public final class RedisLock {
@@ -167,8 +167,8 @@ end
 return -1;
 ```
 
-###Dependency Management
-####Gradle
+#####Dependency Management
+######Gradle
 ```groovy
 repositories {
    jcenter()
