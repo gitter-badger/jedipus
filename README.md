@@ -1,4 +1,4 @@
-#Jedipus [![Build Status](https://travis-ci.org/jamespedwards42/jedipus.svg?branch=master)](https://travis-ci.org/jamespedwards42/jedipus) [![JCenter](https://api.bintray.com/packages/jamespedwards42/libs/jedipus/images/download.svg) ](https://bintray.com/jamespedwards42/libs/jedipus/_latestVersion) [![License](http://img.shields.io/badge/license-Apache--2-blue.svg?style=flat) ](http://www.apache.org/licenses/LICENSE-2.0)
+##Jedipus [![Build Status](https://travis-ci.org/jamespedwards42/jedipus.svg?branch=master)](https://travis-ci.org/jamespedwards42/jedipus) [![JCenter](https://api.bintray.com/packages/jamespedwards42/libs/jedipus/images/download.svg) ](https://bintray.com/jamespedwards42/libs/jedipus/_latestVersion) [![License](http://img.shields.io/badge/license-Apache--2-blue.svg?style=flat) ](http://www.apache.org/licenses/LICENSE-2.0)
 
 >Jedipus is a Redis Cluster Java client that manages JedisPool's against masters of the cluster.
 
@@ -9,7 +9,7 @@
 * Re-uses the work already done on Jedis clients to support pipelining and transactions.  Remember that all keys must share the same hash slot, instead of validating this, Jedipus trusts the user in order to avoid unnecessary overhead.
 * Minimal dependency tree (Jedipus -> Jedis -> org.apache.commons:commons-pool2).
 * Utilities to manage and execute Lua scripts.
-* Optional user supplied HostAndPort -> JedisPool factories.  Useful for client side ip/port mapping or dynamic pool sizes.
+* Optional user supplied master and slave HostAndPort -> JedisPool factories.  Useful for client side ip/port mapping or dynamic pool sizes.
 * Optional user supplied slave JedisPool[] -> LoadBalancedPools factories.  By default, a round robin strategy is used.
 
 ######Read Modes
@@ -17,8 +17,8 @@
 
 * MASTER: Only pools to master nodes are maintained.  
 * SLAVES: Only pools to slave nodes are maintained. Calls are load balanced across pools.
-* MIXED_SLAVES: Pools are managed for both masters and slave nodes.  Calls are only load balanced across slave pools.  Individual calls can override the read mode with `ReadMode.MASTER` or `ReadMode.SlAVE`.
-* MIXED:  Pools are managed for both masters and slave nodes.  Calls are load balanced across both master and slave pools. Individual calls can override the read mode with `ReadMode.MASTER` or `ReadMode.SlAVE`.
+* MIXED_SLAVES: Pools are managed for both masters and slave nodes.  Calls are only load balanced across slave pools.  Individual calls can override the read mode with `ReadMode.MASTER` or `ReadMode.SLAVES`.
+* MIXED: Pools are managed for both masters and slave nodes.  Calls are load balanced across both master and slave pools. Individual calls can override the read mode with `ReadMode.MASTER` or `ReadMode.SLAVES`.
 
 #####Basic Usage Example
 ```java
@@ -29,12 +29,12 @@ try (final JedisClusterExecutor jce = JedisClusterExecutor.startBuilding()
   .withDiscoveryHostPorts(discoveryHostPorts).withReadMode(ReadMode.MIXED_SLAVES).create()) {
 
    // Ping-Pong all masters.
-   jce.acceptAllMasters(jedis -> System.out.format("MASTER@%s:%d %s%n",
-       jedis.getClient().getHost(), jedis.getClient().getPort(), jedis.ping()));
+   jce.acceptAllMasters(master -> System.out.format("MASTER@%s:%d %s%n",
+       master.getClient().getHost(), master.getClient().getPort(), master.ping()));
 
    // Ping-Pong all slaves.
-   jce.acceptAllSlaves(jedis -> System.out.format("SLAVE@%s:%d %s%n",
-       jedis.getClient().getHost(), jedis.getClient().getPort(), jedis.ping()));
+   jce.acceptAllSlaves(slave -> System.out.format("SLAVE@%s:%d %s%n",
+       slave.getClient().getHost(), slave.getClient().getPort(), slave.ping()));
 
    // Hash tagged pipelined transaction.
    final String hashTag = RCUtils.createNameSpacedHashTag("HT");
