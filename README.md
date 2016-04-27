@@ -16,9 +16,9 @@
 >Read modes control how pools to master and slave nodes are managed.
 
 * MASTER: Only pools to master nodes are maintained.  
-* SLAVES: Only pools to slave nodes are maintained. Calls are load balanced across pools.
-* MIXED_SLAVES: Pools are managed for both masters and slave nodes.  Calls are only load balanced across slave pools.  Individual calls can be overridden with `ReadMode.MASTER` or `ReadMode.SLAVES`.
-* MIXED: Pools are managed for both masters and slave nodes.  Calls are load balanced across both master and slave pools. Individual calls can be overridden with `ReadMode.MASTER` or `ReadMode.SLAVES`.
+* SLAVES: Only pools to slave nodes are maintained. Calls are load balanced across slave pools.
+* MIXED_SLAVES: Pools are managed for both masters and slave nodes.  Calls are only load balanced across slave pools. Individual calls can be overridden with `ReadMode.MASTER` or `ReadMode.SLAVES`.  When no slave pools are available it will use the master pool.
+* MIXED: Pools are managed for both masters and slave nodes.  Calls are load balanced across both master and slave pools. Individual calls can be overridden with `ReadMode.MASTER` or `ReadMode.SLAVES`.  When overriding with `ReadMode.SLAVES` and no slave pools are available it will use the master pool.
 
 #####Basic Usage Example
 ```java

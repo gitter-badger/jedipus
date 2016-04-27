@@ -393,7 +393,7 @@ final class JedisClusterSlotCache implements Closeable {
 
     long readStamp = lock.tryOptimisticRead();
 
-    final JedisPool pool = getRoundRobinPool(readMode, slot);
+    final JedisPool pool = getLoadBalancedPool(readMode, slot);
 
     if (lock.validate(readStamp)) {
       return pool;
@@ -401,13 +401,13 @@ final class JedisClusterSlotCache implements Closeable {
 
     readStamp = lock.readLock();
     try {
-      return getRoundRobinPool(readMode, slot);
+      return getLoadBalancedPool(readMode, slot);
     } finally {
       lock.unlockRead(readStamp);
     }
   }
 
-  private JedisPool getRoundRobinPool(final ReadMode readMode, final int slot) {
+  private JedisPool getLoadBalancedPool(final ReadMode readMode, final int slot) {
 
     switch (readMode) {
       case MASTER:
