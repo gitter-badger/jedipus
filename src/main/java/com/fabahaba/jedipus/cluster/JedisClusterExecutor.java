@@ -48,10 +48,11 @@ public final class JedisClusterExecutor implements Closeable {
       final Collection<HostAndPort> discoveryHostPorts, final int maxRedirections,
       final int maxRetries, final int tryRandomAfter,
       final Function<HostAndPort, JedisPool> masterPoolFactory,
-      final Function<HostAndPort, JedisPool> slavePoolFactory) {
+      final Function<HostAndPort, JedisPool> slavePoolFactory,
+      final Function<JedisPool[], LoadBalancedPools> lbFactory) {
 
     this.connHandler = new JedisClusterConnHandler(defaultReadMode, discoveryHostPorts,
-        masterPoolFactory, slavePoolFactory);
+        masterPoolFactory, slavePoolFactory, lbFactory);
 
     this.maxRedirections = maxRedirections;
     this.maxRetries = maxRetries;
@@ -551,6 +552,7 @@ public final class JedisClusterExecutor implements Closeable {
     private GenericObjectPoolConfig poolConfig;
     private Function<HostAndPort, JedisPool> masterPoolFactory;
     private Function<HostAndPort, JedisPool> slavePoolFactory;
+    private Function<JedisPool[], LoadBalancedPools> lbFactory;
 
     private Builder() {}
 
@@ -569,8 +571,12 @@ public final class JedisClusterExecutor implements Closeable {
         slavePoolFactory = masterPoolFactory;
       }
 
+      if (lbFactory == null) {
+        lbFactory = slavePools -> new RoundRobinPools(slavePools);
+      }
+
       return new JedisClusterExecutor(readMode, discoveryHostPorts, maxRedirections, maxRetries,
-          tryRandomAfter, masterPoolFactory, slavePoolFactory);
+          tryRandomAfter, masterPoolFactory, slavePoolFactory, lbFactory);
     }
 
     public ReadMode getReadMode() {
@@ -661,6 +667,14 @@ public final class JedisClusterExecutor implements Closeable {
     public Builder withSlavePoolFactory(final Function<HostAndPort, JedisPool> slavePoolFactory) {
       this.slavePoolFactory = slavePoolFactory;
       return this;
+    }
+
+    public Function<JedisPool[], LoadBalancedPools> getLbFactory() {
+      return lbFactory;
+    }
+
+    public void setLbFactory(final Function<JedisPool[], LoadBalancedPools> lbFactory) {
+      this.lbFactory = lbFactory;
     }
   }
 }

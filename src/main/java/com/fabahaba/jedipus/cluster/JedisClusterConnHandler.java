@@ -21,10 +21,11 @@ class JedisClusterConnHandler implements Closeable {
   JedisClusterConnHandler(final ReadMode defaultReadMode,
       final Collection<HostAndPort> discoveryHostPorts,
       final Function<HostAndPort, JedisPool> masterPoolFactory,
-      final Function<HostAndPort, JedisPool> slavePoolFactory) {
+      final Function<HostAndPort, JedisPool> slavePoolFactory,
+      final Function<JedisPool[], LoadBalancedPools> lbFactory) {
 
     this.cache = JedisClusterSlotCache.create(defaultReadMode, discoveryHostPorts,
-        masterPoolFactory, slavePoolFactory);
+        masterPoolFactory, slavePoolFactory, lbFactory);
   }
 
   ReadMode getDefaultReadMode() {

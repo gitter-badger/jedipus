@@ -6,5 +6,5 @@ import redis.clients.jedis.JedisPool;
 
 public interface LoadBalancedPools {
 
-  JedisPool getNextPool(final ReadMode readMode);
+  JedisPool next(final ReadMode readMode);
 }

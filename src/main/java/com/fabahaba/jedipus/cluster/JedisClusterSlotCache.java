@@ -33,6 +33,7 @@ final class JedisClusterSlotCache implements Closeable {
   private final Map<HostAndPort, JedisPool> masterPools;
   private final JedisPool[] masterSlots;
 
+  private final Function<JedisPool[], LoadBalancedPools> lbFactory;
   private final Map<HostAndPort, JedisPool> slavePools;
   private final LoadBalancedPools[] slaveSlots;
 
@@ -48,7 +49,8 @@ final class JedisClusterSlotCache implements Closeable {
       final Map<HostAndPort, JedisPool> masterPools, final JedisPool[] masterSlots,
       final Map<HostAndPort, JedisPool> slavePools, final LoadBalancedPools[] slaveSlots,
       final Function<HostAndPort, JedisPool> masterPoolFactory,
-      final Function<HostAndPort, JedisPool> slavePoolFactory) {
+      final Function<HostAndPort, JedisPool> slavePoolFactory,
+      final Function<JedisPool[], LoadBalancedPools> lbFactory) {
 
     this.defaultReadMode = readMode;
     this.discoveryHostPorts = discoveryNodes;
@@ -63,6 +65,7 @@ final class JedisClusterSlotCache implements Closeable {
 
     this.masterPoolFactory = masterPoolFactory;
     this.slavePoolFactory = slavePoolFactory;
+    this.lbFactory = lbFactory;
   }
 
   ReadMode getDefaultReadMode() {
@@ -73,7 +76,8 @@ final class JedisClusterSlotCache implements Closeable {
   static JedisClusterSlotCache create(final ReadMode readMode,
       final Collection<HostAndPort> discoveryHostPorts,
       final Function<HostAndPort, JedisPool> masterPoolFactory,
-      final Function<HostAndPort, JedisPool> slavePoolFactory) {
+      final Function<HostAndPort, JedisPool> slavePoolFactory,
+      final Function<JedisPool[], LoadBalancedPools> lbFactory) {
 
     final Map<HostAndPort, JedisPool> masterPools =
         readMode == ReadMode.SLAVES ? Collections.emptyMap() : new HashMap<>();
@@ -85,8 +89,8 @@ final class JedisClusterSlotCache implements Closeable {
     final LoadBalancedPools[] slaveSlots = readMode == ReadMode.MASTER ? new LoadBalancedPools[0]
         : new LoadBalancedPools[BinaryJedisCluster.HASHSLOTS];
 
-    return create(readMode, discoveryHostPorts, masterPoolFactory, slavePoolFactory, masterPools,
-        masterSlots, slavePools, slaveSlots);
+    return create(readMode, discoveryHostPorts, masterPoolFactory, slavePoolFactory, lbFactory,
+        masterPools, masterSlots, slavePools, slaveSlots);
   }
 
   @SuppressWarnings("unchecked")
@@ -94,6 +98,8 @@ final class JedisClusterSlotCache implements Closeable {
       final Collection<HostAndPort> discoveryHostPorts,
       final Function<HostAndPort, JedisPool> masterPoolFactory,
       final Function<HostAndPort, JedisPool> slavePoolFactory,
+      final Function<JedisPool[], LoadBalancedPools> lbFactory,
+
       final Map<HostAndPort, JedisPool> masterPools, final JedisPool[] masterSlots,
       final Map<HostAndPort, JedisPool> slavePools, final LoadBalancedPools[] slaveSlots) {
 
@@ -158,21 +164,21 @@ final class JedisClusterSlotCache implements Closeable {
           if (readMode != ReadMode.MASTER) {
 
             final LoadBalancedPools lbPools =
-                new RoundRobinPools(slotSlavePools.toArray(new JedisPool[slotSlavePools.size()]));
+                lbFactory.apply(slotSlavePools.toArray(new JedisPool[slotSlavePools.size()]));
 
             Arrays.fill(slaveSlots, slotBegin, slotEnd, lbPools);
           }
         }
 
         return new JedisClusterSlotCache(readMode, allDiscoveryHostPorts, masterPools, masterSlots,
-            slavePools, slaveSlots, masterPoolFactory, slavePoolFactory);
+            slavePools, slaveSlots, masterPoolFactory, slavePoolFactory, lbFactory);
       } catch (final JedisConnectionException e) {
         // try next discoveryNode...
       }
     }
 
     return new JedisClusterSlotCache(readMode, allDiscoveryHostPorts, masterPools, masterSlots,
-        slavePools, slaveSlots, masterPoolFactory, slavePoolFactory);
+        slavePools, slaveSlots, masterPoolFactory, slavePoolFactory, lbFactory);
   }
 
   @SuppressWarnings("unchecked")
@@ -246,7 +252,7 @@ final class JedisClusterSlotCache implements Closeable {
         if (defaultReadMode != ReadMode.MASTER) {
 
           final LoadBalancedPools lbPools =
-              new RoundRobinPools(slotSlavePools.toArray(new JedisPool[slotSlavePools.size()]));
+              lbFactory.apply(slotSlavePools.toArray(new JedisPool[slotSlavePools.size()]));
 
           Arrays.fill(slaveSlots, slotBegin, slotEnd, lbPools);
         }
@@ -361,7 +367,7 @@ final class JedisClusterSlotCache implements Closeable {
           return masterSlots[slot];
         }
 
-        final JedisPool slavePool = lbSlaves.getNextPool(readMode);
+        final JedisPool slavePool = lbSlaves.next(readMode);
 
         return slavePool == null ? masterSlots[slot] : slavePool;
       case SLAVES:
@@ -370,7 +376,7 @@ final class JedisClusterSlotCache implements Closeable {
           return masterSlots[slot];
         }
 
-        return lbSlaves.getNextPool(readMode);
+        return lbSlaves.next(readMode);
       default:
         return null;
     }

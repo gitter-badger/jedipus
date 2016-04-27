@@ -18,7 +18,7 @@ class RoundRobinPools implements LoadBalancedPools {
   }
 
   @Override
-  public JedisPool getNextPool(final ReadMode readMode) {
+  public JedisPool next(final ReadMode readMode) {
 
     switch (readMode) {
       case MIXED:
