@@ -340,19 +340,18 @@ final class JedisClusterSlotCache implements Closeable {
 
     long readStamp = lock.tryOptimisticRead();
 
-    JedisPool pool = getRoundRobinPool(readMode, slot);
+    final JedisPool pool = getRoundRobinPool(readMode, slot);
 
-    if (!lock.validate(readStamp)) {
-
-      readStamp = lock.readLock();
-      try {
-        pool = getRoundRobinPool(readMode, slot);
-      } finally {
-        lock.unlockRead(readStamp);
-      }
+    if (lock.validate(readStamp)) {
+      return pool;
     }
 
-    return pool;
+    readStamp = lock.readLock();
+    try {
+      return getRoundRobinPool(readMode, slot);
+    } finally {
+      lock.unlockRead(readStamp);
+    }
   }
 
   private JedisPool getRoundRobinPool(final ReadMode readMode, final int slot) {
@@ -418,7 +417,15 @@ final class JedisClusterSlotCache implements Closeable {
 
   List<JedisPool> getMasterPools() {
 
-    final long readStamp = lock.readLock();
+    long readStamp = lock.tryOptimisticRead();
+
+    final List<JedisPool> pools = new ArrayList<>(masterPools.values());
+
+    if (lock.validate(readStamp)) {
+      return pools;
+    }
+
+    readStamp = lock.readLock();
     try {
       return new ArrayList<>(masterPools.values());
     } finally {
@@ -428,7 +435,15 @@ final class JedisClusterSlotCache implements Closeable {
 
   List<JedisPool> getSlavePools() {
 
-    final long readStamp = lock.readLock();
+    long readStamp = lock.tryOptimisticRead();
+
+    final List<JedisPool> pools = new ArrayList<>(slavePools.values());
+
+    if (lock.validate(readStamp)) {
+      return pools;
+    }
+
+    readStamp = lock.readLock();
     try {
       return new ArrayList<>(slavePools.values());
     } finally {
@@ -438,12 +453,83 @@ final class JedisClusterSlotCache implements Closeable {
 
   List<JedisPool> getAllPools() {
 
-    final long readStamp = lock.readLock();
+    long readStamp = lock.tryOptimisticRead();
+
+    List<JedisPool> allPools = new ArrayList<>(masterPools.size() + slavePools.size());
+    allPools.addAll(masterPools.values());
+    allPools.addAll(slavePools.values());
+
+    if (lock.validate(readStamp)) {
+      return allPools;
+    }
+
+    readStamp = lock.readLock();
     try {
-      final List<JedisPool> allPools = new ArrayList<>(masterPools.size() + slavePools.size());
+      allPools = new ArrayList<>(masterPools.size() + slavePools.size());
       allPools.addAll(masterPools.values());
       allPools.addAll(slavePools.values());
       return allPools;
+    } finally {
+      lock.unlockRead(readStamp);
+    }
+  }
+
+  JedisPool getMasterPoolIfPresent(final HostAndPort hostPort) {
+
+    long readStamp = lock.tryOptimisticRead();
+
+    final JedisPool pool = masterPools.get(hostPort);
+
+    if (lock.validate(readStamp)) {
+      return pool;
+    }
+
+    readStamp = lock.readLock();
+    try {
+      return masterPools.get(hostPort);
+    } finally {
+      lock.unlockRead(readStamp);
+    }
+  }
+
+  JedisPool getSlavePoolIfPresent(final HostAndPort hostPort) {
+
+    long readStamp = lock.tryOptimisticRead();
+
+    final JedisPool pool = slavePools.get(hostPort);
+
+    if (lock.validate(readStamp)) {
+      return pool;
+    }
+
+    readStamp = lock.readLock();
+    try {
+      return slavePools.get(hostPort);
+    } finally {
+      lock.unlockRead(readStamp);
+    }
+  }
+
+  JedisPool getPoolIfPresent(final HostAndPort hostPort) {
+
+    long readStamp = lock.tryOptimisticRead();
+
+    JedisPool pool = masterPools.get(hostPort);
+    if (pool == null) {
+      pool = slavePools.get(hostPort);
+    }
+
+    if (lock.validate(readStamp)) {
+      return pool;
+    }
+
+    readStamp = lock.readLock();
+    try {
+      pool = masterPools.get(hostPort);
+      if (pool == null) {
+        pool = slavePools.get(hostPort);
+      }
+      return pool;
     } finally {
       lock.unlockRead(readStamp);
     }

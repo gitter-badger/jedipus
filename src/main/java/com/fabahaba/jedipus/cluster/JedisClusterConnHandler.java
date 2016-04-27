@@ -94,6 +94,21 @@ class JedisClusterConnHandler implements Closeable {
     return cache.getAllPools();
   }
 
+  JedisPool getMasterPoolIfPresent(final HostAndPort hostPort) {
+
+    return cache.getMasterPoolIfPresent(hostPort);
+  }
+
+  JedisPool getSlavePoolIfPresent(final HostAndPort hostPort) {
+
+    return cache.getSlavePoolIfPresent(hostPort);
+  }
+
+  JedisPool getPoolIfPresent(final HostAndPort hostPort) {
+
+    return cache.getPoolIfPresent(hostPort);
+  }
+
   void renewSlotCache(final ReadMode readMode) {
 
     for (final JedisPool jp : cache.getShuffledPools(readMode)) {
