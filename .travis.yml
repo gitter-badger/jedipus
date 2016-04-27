@@ -12,6 +12,7 @@ jdk:
 
 branches:
   only:
+    - master
     - /^jedipus-.*$/
 
 env:
@@ -29,9 +30,10 @@ before_cache:
 cache:
   directories:
     - $HOME/.gradle/caches/
+    - $HOME/.gradle/wrapper/
 
 install: /bin/true
 
-script: gradle check
+script: if [ "$TRAVIS_PULL_REQUEST" == "true" ] && [ "$TRAVIS_BRANCH" == "master" ]; then gradle check; elif [[ "$TRAVIS_BRANCH" == jedipus* ]]; then gradle check; fi
 
-after_success: gradle bintrayUpload
+after_success: if [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ ! -z "$TRAVIS_TAG" ] ; then gradle bintrayUpload; fi

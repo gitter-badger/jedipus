@@ -7,6 +7,7 @@ import com.fabahaba.jedipus.cluster.JedisClusterExecutor;
 import com.fabahaba.jedipus.cluster.JedisClusterExecutor.ReadMode;
 
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.Pipeline;
 
 public interface LuaScript {
 
@@ -15,6 +16,16 @@ public interface LuaScript {
   public String getSha1Hex();
 
   public byte[] getSha1HexBytes();
+
+  public Object eval(final Pipeline pipeline, final int numRetries, final int keyCount,
+      final byte[]... params);
+
+  public Object eval(final Pipeline pipeline, final int numRetries, final List<byte[]> keys,
+      final List<byte[]> args);
+
+  public Object eval(final Pipeline pipeline, final int keyCount, final byte[]... params);
+
+  public Object eval(final Pipeline pipeline, final List<byte[]> keys, final List<byte[]> args);
 
   public Object eval(final Jedis jedis, final int numRetries, final int keyCount,
       final byte[]... params);
