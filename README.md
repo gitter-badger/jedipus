@@ -2,14 +2,23 @@
 
 >Jedipus is a Redis Cluster Java client that manages JedisPool's against masters of the cluster.
 
-**Features:**
-* Execute Jedis Consumer and Function Java 8 lambas against a Redis Cluster.
+######Features
+* Execute Jedis Consumer and Function Java 8 Lambas against a Redis Cluster.
 * Use known slot ints for O(1) direct primitive array access to a corresponding JedisPool.
-* Minimal locking is applied using a StampedLock optimistic read when retrieiving a JedisPool.  Locking is required to handle concurrent Redis hash slot remapping events.
+* Minimal locking is applied using a StampedLock optimistic read when retrieving a JedisPool.  Locking is required to handle concurrent Redis hash slot remapping events.
 * Re-uses the work already done on Jedis clients to support pipelining and transactions.  Remember that all keys must share the same hash slot, instead of validating this, Jedipus trusts the user in order to avoid unnecessary overhead.
 * Minimal dependency tree (Jedipus -> Jedis -> org.apache.commons:commons-pool2).
 * Utilities to manage and execute Lua scripts.
 * Optional user supplied HostAndPort -> JedisPool factories.  Useful for client side ip/port mapping or dynamic pool sizes.
+* Optional user supplied slave JedisPool[] -> LoadBalancedPools factories.  By default, a round robin strategy is used.
+
+######Read Modes
+>Read modes control how pools to master and slave nodes are managed.
+
+* MASTER: Only pools to master nodes are maintained.  
+* SLAVES: Only pools to slave nodes are maintained. Calls are load balanced across pools.
+* MIXED_SLAVES: Pools are managed for both masters and slave nodes.  Calls are only load balanced across slave pools.  Individual calls can override the read mode with `ReadMode.MASTER` or `ReadMode.SlAVE`.
+* MIXED:  Pools are managed for both masters and slave nodes.  Calls are load balanced across both master and slave pools. Individual calls can override the read mode with `ReadMode.MASTER` or `ReadMode.SlAVE`.
 
 ###Basic Usage Example
 ```java
@@ -36,7 +45,7 @@ try (final JedisClusterExecutor jce = JedisClusterExecutor.startBuilding()
 
    final List<Response<?>> results = new ArrayList<>(2);
 
-   jce.acceptPipelinedTransaction(JedisClusterExecutor.ReadMode.MASTER, slot, pipeline -> {
+   jce.acceptPipelinedTransaction(ReadMode.MASTER, slot, pipeline -> {
 
      pipeline.set(hashTaggedKey, "value");
      pipeline.zadd(fooKey, 1, "barowitch");
