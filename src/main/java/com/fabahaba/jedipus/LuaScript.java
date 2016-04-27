@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import com.fabahaba.jedipus.cluster.JedisClusterExecutor;
+import com.fabahaba.jedipus.cluster.JedisClusterExecutor.ReadMode;
 
 import redis.clients.jedis.Jedis;
 
@@ -45,8 +46,20 @@ public interface LuaScript {
     return eval(jedisExecutor, jedisExecutor.getMaxRetries(), keyCount, params);
   }
 
-  public Object eval(final JedisClusterExecutor jedisExecutor, final int numRetries,
-      final int keyCount, final byte[]... params);
+  default Object eval(final ReadMode readMode, final JedisClusterExecutor jedisExecutor,
+      final int keyCount, final byte[]... params) {
+
+    return eval(readMode, jedisExecutor, jedisExecutor.getMaxRetries(), keyCount, params);
+  }
+
+  default Object eval(final JedisClusterExecutor jedisExecutor, final int numRetries,
+      final int keyCount, final byte[]... params) {
+
+    return eval(jedisExecutor.getDefaultReadMode(), jedisExecutor, numRetries, keyCount, params);
+  }
+
+  public Object eval(final ReadMode readMode, final JedisClusterExecutor jedisExecutor,
+      final int numRetries, final int keyCount, final byte[]... params);
 
   default Object eval(final JedisClusterExecutor jedisExecutor, final List<byte[]> keys,
       final List<byte[]> args) {
@@ -54,8 +67,20 @@ public interface LuaScript {
     return eval(jedisExecutor, jedisExecutor.getMaxRetries(), keys, args);
   }
 
-  public Object eval(final JedisClusterExecutor jedisExecutor, final int numRetries,
-      final List<byte[]> keys, final List<byte[]> args);
+  default Object eval(final ReadMode readMode, final JedisClusterExecutor jedisExecutor,
+      final List<byte[]> keys, final List<byte[]> args) {
+
+    return eval(readMode, jedisExecutor, jedisExecutor.getMaxRetries(), keys, args);
+  }
+
+  default Object eval(final JedisClusterExecutor jedisExecutor, final int numRetries,
+      final List<byte[]> keys, final List<byte[]> args) {
+
+    return eval(jedisExecutor.getDefaultReadMode(), jedisExecutor, numRetries, keys, args);
+  }
+
+  public Object eval(final ReadMode readMode, final JedisClusterExecutor jedisExecutor,
+      final int numRetries, final List<byte[]> keys, final List<byte[]> args);
 
   default Object eval(final int slot, final JedisClusterExecutor jedisExecutor, final int keyCount,
       final byte[]... params) {
@@ -63,8 +88,22 @@ public interface LuaScript {
     return eval(slot, jedisExecutor, jedisExecutor.getMaxRetries(), keyCount, params);
   }
 
-  public Object eval(final int slot, final JedisClusterExecutor jedisExecutor, final int numRetries,
-      final int keyCount, final byte[]... params);
+  default Object eval(final ReadMode readMode, final int slot,
+      final JedisClusterExecutor jedisExecutor, final int keyCount, final byte[]... params) {
+
+    return eval(readMode, slot, jedisExecutor, jedisExecutor.getMaxRetries(), keyCount, params);
+  }
+
+  default Object eval(final int slot, final JedisClusterExecutor jedisExecutor,
+      final int numRetries, final int keyCount, final byte[]... params) {
+
+    return eval(jedisExecutor.getDefaultReadMode(), slot, jedisExecutor, numRetries, keyCount,
+        params);
+  }
+
+  public Object eval(final ReadMode readMode, final int slot,
+      final JedisClusterExecutor jedisExecutor, final int numRetries, final int keyCount,
+      final byte[]... params);
 
   default Object eval(final int slot, final JedisClusterExecutor jedisExecutor,
       final List<byte[]> keys, final List<byte[]> args) {
@@ -72,8 +111,15 @@ public interface LuaScript {
     return eval(slot, jedisExecutor, jedisExecutor.getMaxRetries(), keys, args);
   }
 
-  public Object eval(final int slot, final JedisClusterExecutor jedisExecutor, final int numRetries,
-      final List<byte[]> keys, final List<byte[]> args);
+  default Object eval(final int slot, final JedisClusterExecutor jedisExecutor,
+      final int numRetries, final List<byte[]> keys, final List<byte[]> args) {
+
+    return eval(jedisExecutor.getDefaultReadMode(), slot, jedisExecutor, numRetries, keys, args);
+  }
+
+  public Object eval(final ReadMode readMode, final int slot,
+      final JedisClusterExecutor jedisExecutor, final int numRetries, final List<byte[]> keys,
+      final List<byte[]> args);
 
   public static void loadMissingScripts(final JedisClusterExecutor jedisExecutor,
       final LuaScript... luaScripts) {

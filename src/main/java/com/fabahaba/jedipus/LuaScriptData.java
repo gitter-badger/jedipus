@@ -15,6 +15,7 @@ import java.util.stream.Collectors;
 import javax.xml.bind.DatatypeConverter;
 
 import com.fabahaba.jedipus.cluster.JedisClusterExecutor;
+import com.fabahaba.jedipus.cluster.JedisClusterExecutor.ReadMode;
 
 import redis.clients.jedis.Jedis;
 
@@ -83,35 +84,37 @@ public class LuaScriptData implements LuaScript {
   }
 
   @Override
-  public Object eval(final JedisClusterExecutor jedisExecutor, final int numRetries,
-      final int keyCount, final byte[]... params) {
+  public Object eval(final ReadMode readMode, final JedisClusterExecutor jedisExecutor,
+      final int numRetries, final int keyCount, final byte[]... params) {
 
-    return jedisExecutor.applyJedis(params[0],
+    return jedisExecutor.applyJedis(readMode, params[0],
         jedis -> jedis.evalsha(sha1HexBytes, keyCount, params), numRetries);
   }
 
   @Override
-  public Object eval(final JedisClusterExecutor jedisExecutor, final int numRetries,
-      final List<byte[]> keys, final List<byte[]> args) {
+  public Object eval(final ReadMode readMode, final JedisClusterExecutor jedisExecutor,
+      final int numRetries, final List<byte[]> keys, final List<byte[]> args) {
 
-    return jedisExecutor.applyJedis(keys.get(0), jedis -> jedis.evalsha(sha1HexBytes, keys, args),
-        numRetries);
+    return jedisExecutor.applyJedis(readMode, keys.get(0),
+        jedis -> jedis.evalsha(sha1HexBytes, keys, args), numRetries);
   }
 
   @Override
-  public Object eval(final int slot, final JedisClusterExecutor jedisExecutor, final int numRetries,
-      final int keyCount, final byte[]... params) {
+  public Object eval(final ReadMode readMode, final int slot,
+      final JedisClusterExecutor jedisExecutor, final int numRetries, final int keyCount,
+      final byte[]... params) {
 
-    return jedisExecutor.applyJedis(slot, jedis -> jedis.evalsha(sha1HexBytes, keyCount, params),
-        numRetries);
+    return jedisExecutor.applyJedis(readMode, slot,
+        jedis -> jedis.evalsha(sha1HexBytes, keyCount, params), numRetries);
   }
 
   @Override
-  public Object eval(final int slot, final JedisClusterExecutor jedisExecutor, final int numRetries,
-      final List<byte[]> keys, final List<byte[]> args) {
+  public Object eval(final ReadMode readMode, final int slot,
+      final JedisClusterExecutor jedisExecutor, final int numRetries, final List<byte[]> keys,
+      final List<byte[]> args) {
 
-    return jedisExecutor.applyJedis(slot, jedis -> jedis.evalsha(sha1HexBytes, keys, args),
-        numRetries);
+    return jedisExecutor.applyJedis(readMode, slot,
+        jedis -> jedis.evalsha(sha1HexBytes, keys, args), numRetries);
   }
 
   @Override
