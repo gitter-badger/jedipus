@@ -565,7 +565,7 @@ public final class JedisClusterExecutor implements Closeable {
     private Function<HostAndPort, JedisPool> masterPoolFactory;
     private Function<HostAndPort, JedisPool> slavePoolFactory;
     private Function<JedisPool[], LoadBalancedPools> lbFactory;
-    private boolean initReadOnly;
+    private boolean initReadOnly = true;
 
     private Builder() {}
 
