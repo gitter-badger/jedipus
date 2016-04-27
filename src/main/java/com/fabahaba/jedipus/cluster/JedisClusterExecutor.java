@@ -3,6 +3,7 @@ package com.fabahaba.jedipus.cluster;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -21,7 +22,11 @@ import redis.clients.jedis.exceptions.JedisMovedDataException;
 import redis.clients.jedis.exceptions.JedisRedirectionException;
 import redis.clients.util.JedisClusterCRC16;
 
-public class JedisClusterExecutor implements Closeable {
+public final class JedisClusterExecutor implements Closeable {
+
+  public static enum ReadMode {
+    MASTER, SLAVES, MIXED, MIXED_SLAVES;
+  }
 
   private static final int DEFAULT_TIMEOUT = 2000;
   private static final int DEFAULT_MAX_REDIRECTIONS = 5;
@@ -32,40 +37,22 @@ public class JedisClusterExecutor implements Closeable {
   private final int maxRetries;
   private final int tryRandomAfter;
 
-  private final JedisClusterConnHandler connectionHandler;
+  private final JedisClusterConnHandler connHandler;
 
-  public JedisClusterExecutor(final Collection<HostAndPort> discoveryNodes) {
+  public static Builder startBuilding() {
 
-    this(discoveryNodes, DEFAULT_TIMEOUT);
+    return new Builder();
   }
 
-  public JedisClusterExecutor(final Collection<HostAndPort> discoveryNodes, final int timeout) {
+  private JedisClusterExecutor(final ReadMode defaultReadMode,
+      final Collection<HostAndPort> discoveryHostPorts, final int maxRedirections,
+      final int maxRetries, final int tryRandomAfter,
+      final Function<HostAndPort, JedisPool> masterPoolFactory,
+      final Function<HostAndPort, JedisPool> slavePoolFactory) {
 
-    this(discoveryNodes, timeout, DEFAULT_MAX_REDIRECTIONS, DEFAULT_MAX_RETRIES,
-        DEFAULT_TRY_RANDOM_AFTER, new GenericObjectPoolConfig());
-  }
+    this.connHandler = new JedisClusterConnHandler(defaultReadMode, discoveryHostPorts,
+        masterPoolFactory, slavePoolFactory);
 
-  public JedisClusterExecutor(final Collection<HostAndPort> discoveryNodes, final int timeout,
-      final int maxRedirections, final int maxRetries, final int tryRandomAfter,
-      final GenericObjectPoolConfig poolConfig) {
-
-    this(discoveryNodes, timeout, timeout, maxRedirections, maxRetries, tryRandomAfter, poolConfig);
-  }
-
-  public JedisClusterExecutor(final Collection<HostAndPort> discoveryNodes,
-      final int connectionTimeout, final int soTimeout, final int maxRedirections,
-      final int maxRetries, final int tryRandomAfter, final GenericObjectPoolConfig poolConfig) {
-
-    this(discoveryNodes, maxRedirections, maxRetries, tryRandomAfter,
-        node -> new JedisPool(poolConfig, node.getHost(), node.getPort(), connectionTimeout,
-            soTimeout, null, 0, null));
-  }
-
-  public JedisClusterExecutor(final Collection<HostAndPort> discoveryNodes,
-      final int maxRedirections, final int maxRetries, final int tryRandomAfter,
-      final Function<HostAndPort, JedisPool> jedisPoolFactory) {
-
-    this.connectionHandler = new JedisClusterConnHandler(discoveryNodes, jedisPoolFactory);
     this.maxRedirections = maxRedirections;
     this.maxRetries = maxRetries;
     this.tryRandomAfter = tryRandomAfter;
@@ -84,9 +71,21 @@ public class JedisClusterExecutor implements Closeable {
     acceptJedis(slotKey, jedisConsumer, maxRetries);
   }
 
+  public void acceptJedis(final ReadMode readMode, final byte[] slotKey,
+      final Consumer<Jedis> jedisConsumer) {
+
+    acceptJedis(readMode, slotKey, jedisConsumer, maxRetries);
+  }
+
   public void acceptJedis(final int slot, final Consumer<Jedis> jedisConsumer) {
 
     acceptJedis(slot, jedisConsumer, maxRetries);
+  }
+
+  public void acceptJedis(final ReadMode readMode, final int slot,
+      final Consumer<Jedis> jedisConsumer) {
+
+    acceptJedis(readMode, slot, jedisConsumer, maxRetries);
   }
 
   public void acceptJedis(final byte[] slotKey, final Consumer<Jedis> jedisConsumer,
@@ -95,10 +94,22 @@ public class JedisClusterExecutor implements Closeable {
     acceptJedis(JedisClusterCRC16.getSlot(slotKey), jedisConsumer, maxRetries);
   }
 
+  public void acceptJedis(final ReadMode readMode, final byte[] slotKey,
+      final Consumer<Jedis> jedisConsumer, final int maxRetries) {
+
+    acceptJedis(readMode, JedisClusterCRC16.getSlot(slotKey), jedisConsumer, maxRetries);
+  }
+
   public void acceptJedis(final int slot, final Consumer<Jedis> jedisConsumer,
       final int maxRetries) {
 
-    applyJedis(slot, j -> {
+    acceptJedis(connHandler.getDefaultReadMode(), slot, jedisConsumer, maxRetries);
+  }
+
+  public void acceptJedis(final ReadMode readMode, final int slot,
+      final Consumer<Jedis> jedisConsumer, final int maxRetries) {
+
+    applyJedis(readMode, slot, j -> {
       jedisConsumer.accept(j);
       return null;
     }, maxRetries);
@@ -109,9 +120,21 @@ public class JedisClusterExecutor implements Closeable {
     return applyJedis(slotKey, jedisConsumer, maxRetries);
   }
 
+  public <R> R applyJedis(final ReadMode readMode, final byte[] slotKey,
+      final Function<Jedis, R> jedisConsumer) {
+
+    return applyJedis(readMode, slotKey, jedisConsumer, maxRetries);
+  }
+
   public <R> R applyJedis(final int slot, final Function<Jedis, R> jedisConsumer) {
 
     return applyJedis(slot, jedisConsumer, maxRetries);
+  }
+
+  public <R> R applyJedis(final ReadMode readMode, final int slot,
+      final Function<Jedis, R> jedisConsumer) {
+
+    return applyJedis(readMode, slot, jedisConsumer, maxRetries);
   }
 
   public <R> R applyJedis(final byte[] slotKey, final Function<Jedis, R> jedisConsumer,
@@ -120,14 +143,33 @@ public class JedisClusterExecutor implements Closeable {
     return applyJedis(JedisClusterCRC16.getSlot(slotKey), jedisConsumer, maxRetries);
   }
 
+  public <R> R applyJedis(final ReadMode readMode, final byte[] slotKey,
+      final Function<Jedis, R> jedisConsumer, final int maxRetries) {
+
+    return applyJedis(readMode, JedisClusterCRC16.getSlot(slotKey), jedisConsumer, maxRetries);
+  }
+
   public <R> R applyPipeline(final byte[] slotKey, final Function<Pipeline, R> pipelineConsumer) {
 
     return applyPipeline(JedisClusterCRC16.getSlot(slotKey), pipelineConsumer, maxRetries);
   }
 
+  public <R> R applyPipeline(final ReadMode readMode, final byte[] slotKey,
+      final Function<Pipeline, R> pipelineConsumer) {
+
+    return applyPipeline(readMode, JedisClusterCRC16.getSlot(slotKey), pipelineConsumer,
+        maxRetries);
+  }
+
   public <R> R applyPipeline(final int slot, final Function<Pipeline, R> pipelineConsumer) {
 
     return applyPipeline(slot, pipelineConsumer, maxRetries);
+  }
+
+  public <R> R applyPipeline(final ReadMode readMode, final int slot,
+      final Function<Pipeline, R> pipelineConsumer) {
+
+    return applyPipeline(readMode, slot, pipelineConsumer, maxRetries);
   }
 
   public <R> R applyPipeline(final byte[] slotKey, final Function<Pipeline, R> pipelineConsumer,
@@ -136,10 +178,23 @@ public class JedisClusterExecutor implements Closeable {
     return applyPipeline(JedisClusterCRC16.getSlot(slotKey), pipelineConsumer, maxRetries);
   }
 
+  public <R> R applyPipeline(final ReadMode readMode, final byte[] slotKey,
+      final Function<Pipeline, R> pipelineConsumer, final int maxRetries) {
+
+    return applyPipeline(readMode, JedisClusterCRC16.getSlot(slotKey), pipelineConsumer,
+        maxRetries);
+  }
+
   public <R> R applyPipeline(final int slot, final Function<Pipeline, R> pipelineConsumer,
       final int maxRetries) {
 
-    return applyJedis(slot, jedis -> {
+    return applyPipeline(connHandler.getDefaultReadMode(), slot, pipelineConsumer, maxRetries);
+  }
+
+  public <R> R applyPipeline(final ReadMode readMode, final int slot,
+      final Function<Pipeline, R> pipelineConsumer, final int maxRetries) {
+
+    return applyJedis(readMode, slot, jedis -> {
       final Pipeline pipeline = jedis.pipelined();
       final R result = pipelineConsumer.apply(pipeline);
       pipeline.sync();
@@ -152,9 +207,21 @@ public class JedisClusterExecutor implements Closeable {
     acceptPipeline(JedisClusterCRC16.getSlot(slotKey), pipelineConsumer, maxRetries);
   }
 
+  public void acceptPipeline(final ReadMode readMode, final byte[] slotKey,
+      final Consumer<PipelineBase> pipelineConsumer) {
+
+    acceptPipeline(readMode, JedisClusterCRC16.getSlot(slotKey), pipelineConsumer, maxRetries);
+  }
+
   public void acceptPipeline(final int slot, final Consumer<PipelineBase> pipelineConsumer) {
 
     acceptPipeline(slot, pipelineConsumer, maxRetries);
+  }
+
+  public void acceptPipeline(final ReadMode readMode, final int slot,
+      final Consumer<PipelineBase> pipelineConsumer) {
+
+    acceptPipeline(readMode, slot, pipelineConsumer, maxRetries);
   }
 
   public void acceptPipeline(final byte[] slotKey, final Consumer<PipelineBase> pipelineConsumer,
@@ -163,10 +230,22 @@ public class JedisClusterExecutor implements Closeable {
     acceptPipeline(JedisClusterCRC16.getSlot(slotKey), pipelineConsumer, maxRetries);
   }
 
+  public void acceptPipeline(final ReadMode readMode, final byte[] slotKey,
+      final Consumer<PipelineBase> pipelineConsumer, final int maxRetries) {
+
+    acceptPipeline(readMode, JedisClusterCRC16.getSlot(slotKey), pipelineConsumer, maxRetries);
+  }
+
   public void acceptPipeline(final int slot, final Consumer<PipelineBase> pipelineConsumer,
       final int maxRetries) {
 
-    applyJedis(slot, jedis -> {
+    acceptPipeline(connHandler.getDefaultReadMode(), slot, pipelineConsumer, maxRetries);
+  }
+
+  public void acceptPipeline(final ReadMode readMode, final int slot,
+      final Consumer<PipelineBase> pipelineConsumer, final int maxRetries) {
+
+    applyJedis(readMode, slot, jedis -> {
       final Pipeline pipeline = jedis.pipelined();
       pipelineConsumer.accept(pipeline);
       pipeline.sync();
@@ -181,10 +260,23 @@ public class JedisClusterExecutor implements Closeable {
         maxRetries);
   }
 
+  public <R> R applyPipelinedTransaction(final ReadMode readMode, final byte[] slotKey,
+      final Function<Pipeline, R> pipelineConsumer) {
+
+    return applyPipelinedTransaction(readMode, JedisClusterCRC16.getSlot(slotKey), pipelineConsumer,
+        maxRetries);
+  }
+
   public <R> R applyPipelinedTransaction(final int slot,
       final Function<Pipeline, R> pipelineConsumer) {
 
     return applyPipelinedTransaction(slot, pipelineConsumer, maxRetries);
+  }
+
+  public <R> R applyPipelinedTransaction(final ReadMode readMode, final int slot,
+      final Function<Pipeline, R> pipelineConsumer) {
+
+    return applyPipelinedTransaction(readMode, slot, pipelineConsumer, maxRetries);
   }
 
   public <R> R applyPipelinedTransaction(final byte[] slotKey,
@@ -194,10 +286,24 @@ public class JedisClusterExecutor implements Closeable {
         maxRetries);
   }
 
+  public <R> R applyPipelinedTransaction(final ReadMode readMode, final byte[] slotKey,
+      final Function<Pipeline, R> pipelineConsumer, final int maxRetries) {
+
+    return applyPipelinedTransaction(readMode, JedisClusterCRC16.getSlot(slotKey), pipelineConsumer,
+        maxRetries);
+  }
+
   public <R> R applyPipelinedTransaction(final int slot,
       final Function<Pipeline, R> pipelineConsumer, final int maxRetries) {
 
-    return applyJedis(slot, jedis -> {
+    return applyPipelinedTransaction(connHandler.getDefaultReadMode(), slot, pipelineConsumer,
+        maxRetries);
+  }
+
+  public <R> R applyPipelinedTransaction(final ReadMode readMode, final int slot,
+      final Function<Pipeline, R> pipelineConsumer, final int maxRetries) {
+
+    return applyJedis(readMode, slot, jedis -> {
       final Pipeline pipeline = jedis.pipelined();
       pipeline.multi();
       final R result = pipelineConsumer.apply(pipeline);
@@ -213,10 +319,23 @@ public class JedisClusterExecutor implements Closeable {
     acceptPipelinedTransaction(JedisClusterCRC16.getSlot(slotKey), pipelineConsumer, maxRetries);
   }
 
+  public void acceptPipelinedTransaction(final ReadMode readMode, final byte[] slotKey,
+      final Consumer<PipelineBase> pipelineConsumer) {
+
+    acceptPipelinedTransaction(readMode, JedisClusterCRC16.getSlot(slotKey), pipelineConsumer,
+        maxRetries);
+  }
+
   public void acceptPipelinedTransaction(final int slot,
       final Consumer<PipelineBase> pipelineConsumer) {
 
     acceptPipelinedTransaction(slot, pipelineConsumer, maxRetries);
+  }
+
+  public void acceptPipelinedTransaction(final ReadMode readMode, final int slot,
+      final Consumer<PipelineBase> pipelineConsumer) {
+
+    acceptPipelinedTransaction(readMode, slot, pipelineConsumer, maxRetries);
   }
 
   public void acceptPipelinedTransaction(final byte[] slotKey,
@@ -225,10 +344,24 @@ public class JedisClusterExecutor implements Closeable {
     acceptPipelinedTransaction(JedisClusterCRC16.getSlot(slotKey), pipelineConsumer, maxRetries);
   }
 
+  public void acceptPipelinedTransaction(final ReadMode readMode, final byte[] slotKey,
+      final Consumer<PipelineBase> pipelineConsumer, final int maxRetries) {
+
+    acceptPipelinedTransaction(readMode, JedisClusterCRC16.getSlot(slotKey), pipelineConsumer,
+        maxRetries);
+  }
+
   public void acceptPipelinedTransaction(final int slot,
       final Consumer<PipelineBase> pipelineConsumer, final int maxRetries) {
 
-    applyJedis(slot, jedis -> {
+    acceptPipelinedTransaction(connHandler.getDefaultReadMode(), slot, pipelineConsumer,
+        maxRetries);
+  }
+
+  public void acceptPipelinedTransaction(final ReadMode readMode, final int slot,
+      final Consumer<PipelineBase> pipelineConsumer, final int maxRetries) {
+
+    applyJedis(readMode, slot, jedis -> {
       final Pipeline pipeline = jedis.pipelined();
       pipeline.multi();
       pipelineConsumer.accept(pipeline);
@@ -238,18 +371,24 @@ public class JedisClusterExecutor implements Closeable {
     }, maxRetries);
   }
 
-  @SuppressWarnings("resource")
   public <R> R applyJedis(final int slot, final Function<Jedis, R> jedisConsumer,
       final int maxRetries) {
 
-    Jedis asking = null;
+    return applyJedis(connHandler.getDefaultReadMode(), slot, jedisConsumer, maxRetries);
+  }
+
+  @SuppressWarnings("resource")
+  public <R> R applyJedis(final ReadMode readMode, final int slot,
+      final Function<Jedis, R> jedisConsumer, final int maxRetries) {
+
+    Jedis askJedis = null;
     int retries = 0;
     try {
 
       // Optimistic first try
       Jedis jedis = null;
       try {
-        jedis = connectionHandler.getConnectionFromSlot(slot);
+        jedis = connHandler.getConnectionFromSlot(readMode, slot);
         return jedisConsumer.apply(jedis);
       } catch (final JedisConnectionException jce) {
 
@@ -260,13 +399,13 @@ public class JedisClusterExecutor implements Closeable {
       } catch (final JedisMovedDataException jre) {
 
         if (jedis == null) {
-          connectionHandler.renewSlotCache();
+          connHandler.renewSlotCache(readMode);
         } else {
-          connectionHandler.renewSlotCache(jedis);
+          connHandler.renewSlotCache(readMode, jedis);
         }
       } catch (final JedisAskDataException jre) {
 
-        asking = connectionHandler.getConnectionFromNode(jre.getTargetNode());
+        askJedis = connHandler.getAskJedis(jre.getTargetNode());
       } catch (final JedisRedirectionException jre) {
 
         throw new JedisClusterException(jre);
@@ -281,15 +420,16 @@ public class JedisClusterExecutor implements Closeable {
         Jedis connection = null;
         try {
 
-          if (asking == null) {
+          if (askJedis == null) {
 
-            connection = retries > tryRandomAfter ? connectionHandler.getConnection()
-                : connectionHandler.getConnectionFromSlot(slot);
+            connection = retries > tryRandomAfter ? connHandler.getConnection(readMode)
+                : connHandler.getConnectionFromSlot(readMode, slot);
+
             return jedisConsumer.apply(connection);
           }
 
-          connection = asking;
-          asking = null;
+          connection = askJedis;
+          askJedis = null;
           connection.asking();
           return jedisConsumer.apply(connection);
         } catch (final JedisConnectionException jce) {
@@ -305,9 +445,9 @@ public class JedisClusterExecutor implements Closeable {
           }
 
           if (connection == null) {
-            connectionHandler.renewSlotCache();
+            connHandler.renewSlotCache(readMode);
           } else {
-            connectionHandler.renewSlotCache(connection);
+            connHandler.renewSlotCache(readMode, connection);
           }
           continue;
         } catch (final JedisAskDataException jre) {
@@ -316,7 +456,7 @@ public class JedisClusterExecutor implements Closeable {
             throw new JedisClusterMaxRedirectionsException(jre);
           }
 
-          asking = connectionHandler.getConnectionFromNode(jre.getTargetNode());
+          askJedis = connHandler.getAskJedis(jre.getTargetNode());
           continue;
         } catch (final JedisRedirectionException jre) {
 
@@ -328,8 +468,8 @@ public class JedisClusterExecutor implements Closeable {
         }
       }
     } finally {
-      if (asking != null) {
-        asking.close();
+      if (askJedis != null) {
+        askJedis.close();
       }
     }
   }
@@ -341,9 +481,34 @@ public class JedisClusterExecutor implements Closeable {
 
   public void acceptAllMasters(final Consumer<Jedis> jedisConsumer, final int maxRetries) {
 
+    acceptAll(connHandler.getMasterPools(), jedisConsumer, maxRetries);
+  }
+
+  public void acceptAllSlaves(final Consumer<Jedis> jedisConsumer) {
+
+    acceptAllSlaves(jedisConsumer, maxRetries);
+  }
+
+  public void acceptAllSlaves(final Consumer<Jedis> jedisConsumer, final int maxRetries) {
+
+    acceptAll(connHandler.getSlavePools(), jedisConsumer, maxRetries);
+  }
+
+  public void acceptAll(final Consumer<Jedis> jedisConsumer) {
+
+    acceptAll(jedisConsumer, maxRetries);
+  }
+
+  public void acceptAll(final Consumer<Jedis> jedisConsumer, final int maxRetries) {
+
+    acceptAll(connHandler.getAllPools(), jedisConsumer, maxRetries);
+  }
+
+  private void acceptAll(final List<JedisPool> pools, final Consumer<Jedis> jedisConsumer,
+      final int maxRetries) {
     JedisConnectionException failure = null;
 
-    for (final JedisPool pool : connectionHandler.getPools()) {
+    for (final JedisPool pool : pools) {
 
       for (int retries = 0;;) {
 
@@ -371,6 +536,131 @@ public class JedisClusterExecutor implements Closeable {
   @Override
   public void close() throws IOException {
 
-    connectionHandler.close();
+    connHandler.close();
+  }
+
+  public static final class Builder {
+
+    private ReadMode readMode = ReadMode.MASTER;
+    private Collection<HostAndPort> discoveryHostPorts;
+    private int timeout = DEFAULT_TIMEOUT;
+    private int soTimeout = DEFAULT_TIMEOUT;
+    private int maxRedirections = DEFAULT_MAX_REDIRECTIONS;
+    private int maxRetries = DEFAULT_MAX_RETRIES;
+    private int tryRandomAfter = DEFAULT_TRY_RANDOM_AFTER;
+    private GenericObjectPoolConfig poolConfig;
+    private Function<HostAndPort, JedisPool> masterPoolFactory;
+    private Function<HostAndPort, JedisPool> slavePoolFactory;
+
+    private Builder() {}
+
+    public JedisClusterExecutor create() {
+
+      if (masterPoolFactory == null) {
+        if (poolConfig == null) {
+          poolConfig = new GenericObjectPoolConfig();
+        }
+
+        masterPoolFactory = node -> new JedisPool(poolConfig, node.getHost(), node.getPort(),
+            timeout, soTimeout, null, 0, null);
+      }
+
+      if (slavePoolFactory == null) {
+        slavePoolFactory = masterPoolFactory;
+      }
+
+      return new JedisClusterExecutor(readMode, discoveryHostPorts, maxRedirections, maxRetries,
+          tryRandomAfter, masterPoolFactory, slavePoolFactory);
+    }
+
+    public ReadMode getReadMode() {
+      return readMode;
+    }
+
+    public Builder withReadMode(final ReadMode readMode) {
+      this.readMode = readMode;
+      return this;
+    }
+
+    public Collection<HostAndPort> getDiscoveryHostPorts() {
+      return discoveryHostPorts;
+    }
+
+    public Builder withDiscoveryHostPorts(final Collection<HostAndPort> discoveryHostPorts) {
+      this.discoveryHostPorts = discoveryHostPorts;
+      return this;
+    }
+
+    public int getTimeout() {
+      return timeout;
+    }
+
+    public Builder withTimeout(final int timeout) {
+      this.timeout = timeout;
+      return this;
+    }
+
+    public int getSoTimeout() {
+      return soTimeout;
+    }
+
+    public Builder withSoTimeout(final int soTimeout) {
+      this.soTimeout = soTimeout;
+      return this;
+    }
+
+    public int getMaxRedirections() {
+      return maxRedirections;
+    }
+
+    public Builder withMaxRedirections(final int maxRedirections) {
+      this.maxRedirections = maxRedirections;
+      return this;
+    }
+
+    public int getMaxRetries() {
+      return maxRetries;
+    }
+
+    public Builder withMaxRetries(final int maxRetries) {
+      this.maxRetries = maxRetries;
+      return this;
+    }
+
+    public int getTryRandomAfter() {
+      return tryRandomAfter;
+    }
+
+    public Builder withTryRandomAfter(final int tryRandomAfter) {
+      this.tryRandomAfter = tryRandomAfter;
+      return this;
+    }
+
+    public GenericObjectPoolConfig getPoolConfig() {
+      return poolConfig;
+    }
+
+    public Builder withPoolConfig(final GenericObjectPoolConfig poolConfig) {
+      this.poolConfig = poolConfig;
+      return this;
+    }
+
+    public Function<HostAndPort, JedisPool> getMasterPoolFactory() {
+      return masterPoolFactory;
+    }
+
+    public Builder withMasterPoolFactory(final Function<HostAndPort, JedisPool> masterPoolFactory) {
+      this.masterPoolFactory = masterPoolFactory;
+      return this;
+    }
+
+    public Function<HostAndPort, JedisPool> getSlavePoolFactory() {
+      return slavePoolFactory;
+    }
+
+    public Builder withSlavePoolFactory(final Function<HostAndPort, JedisPool> slavePoolFactory) {
+      this.slavePoolFactory = slavePoolFactory;
+      return this;
+    }
   }
 }
