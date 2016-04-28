@@ -8,12 +8,14 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import org.apache.commons.pool2.impl.DefaultEvictionPolicy;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.Pipeline;
+import redis.clients.jedis.Protocol;
 import redis.clients.jedis.exceptions.JedisAskDataException;
 import redis.clients.jedis.exceptions.JedisClusterException;
 import redis.clients.jedis.exceptions.JedisClusterMaxRedirectionsException;
@@ -28,10 +30,28 @@ public final class JedisClusterExecutor implements Closeable {
     MASTER, SLAVES, MIXED, MIXED_SLAVES;
   }
 
-  private static final int DEFAULT_TIMEOUT = 2000;
   private static final int DEFAULT_MAX_REDIRECTIONS = 5;
   private static final int DEFAULT_MAX_RETRIES = 2;
   private static final int DEFAULT_TRY_RANDOM_AFTER = 1;
+
+  public static final GenericObjectPoolConfig DEFAULT_POOL_CONFIG = new GenericObjectPoolConfig();
+  static {
+    DEFAULT_POOL_CONFIG.setMaxIdle(2);
+    DEFAULT_POOL_CONFIG.setMaxTotal(GenericObjectPoolConfig.DEFAULT_MAX_TOTAL); // 8
+
+    DEFAULT_POOL_CONFIG.setMinEvictableIdleTimeMillis(30000);
+    DEFAULT_POOL_CONFIG.setTimeBetweenEvictionRunsMillis(15000);
+    DEFAULT_POOL_CONFIG.setEvictionPolicyClassName(DefaultEvictionPolicy.class.getName());
+
+    // block forever
+    DEFAULT_POOL_CONFIG.setBlockWhenExhausted(true);
+    DEFAULT_POOL_CONFIG.setMaxWaitMillis(GenericObjectPoolConfig.DEFAULT_MAX_WAIT_MILLIS);
+  }
+
+  private static final Function<HostAndPort, JedisPool> DEFAULT_POOL_FACTORY =
+      node -> new JedisPool(DEFAULT_POOL_CONFIG, node.getHost(), node.getPort(),
+          Protocol.DEFAULT_TIMEOUT, Protocol.DEFAULT_TIMEOUT, null, Protocol.DEFAULT_DATABASE,
+          "jedipus");
 
   private static final BiFunction<ReadMode, JedisPool[], LoadBalancedPools> DEFAULT_LB_FACTORIES =
       (defaultReadMode, slavePools) -> {
@@ -61,7 +81,7 @@ public final class JedisClusterExecutor implements Closeable {
                     // will fall back to master pool
                     return null;
                   case MIXED:
-                    // ignore request to lb across master. Use MIXED as default instead.
+                    // ignore request to lb across master. Should use MIXED as default instead.
                   case MIXED_SLAVES:
                   case SLAVES:
                   default:
@@ -598,50 +618,34 @@ public final class JedisClusterExecutor implements Closeable {
 
   public static final class Builder {
 
-    private ReadMode readMode = ReadMode.MASTER;
+    private ReadMode defaultReadMode = ReadMode.MASTER;
     private Collection<HostAndPort> discoveryHostPorts;
-    private int timeout = DEFAULT_TIMEOUT;
-    private int soTimeout = DEFAULT_TIMEOUT;
+    private int timeout = Protocol.DEFAULT_TIMEOUT;
+    private int soTimeout = Protocol.DEFAULT_TIMEOUT;
     private int maxRedirections = DEFAULT_MAX_REDIRECTIONS;
     private int maxRetries = DEFAULT_MAX_RETRIES;
     private int tryRandomAfter = DEFAULT_TRY_RANDOM_AFTER;
-    private GenericObjectPoolConfig poolConfig;
-    private Function<HostAndPort, JedisPool> masterPoolFactory;
-    private Function<HostAndPort, JedisPool> slavePoolFactory;
-    private Function<JedisPool[], LoadBalancedPools> lbFactory;
+    private GenericObjectPoolConfig poolConfig = DEFAULT_POOL_CONFIG;
+    private Function<HostAndPort, JedisPool> masterPoolFactory = DEFAULT_POOL_FACTORY;
+    private Function<HostAndPort, JedisPool> slavePoolFactory = DEFAULT_POOL_FACTORY;
+    private BiFunction<ReadMode, JedisPool[], LoadBalancedPools> lbFactory = DEFAULT_LB_FACTORIES;
     private boolean initReadOnly = true;
 
     private Builder() {}
 
     public JedisClusterExecutor create() {
 
-      if (masterPoolFactory == null) {
-        if (poolConfig == null) {
-          poolConfig = new GenericObjectPoolConfig();
-        }
-
-        masterPoolFactory = node -> new JedisPool(poolConfig, node.getHost(), node.getPort(),
-            timeout, soTimeout, null, 0, null);
-      }
-
-      if (slavePoolFactory == null) {
-        slavePoolFactory = masterPoolFactory;
-      }
-
-      if (lbFactory == null) {
-        lbFactory = slavePools -> DEFAULT_LB_FACTORIES.apply(readMode, slavePools);
-      }
-
-      return new JedisClusterExecutor(readMode, discoveryHostPorts, maxRedirections, maxRetries,
-          tryRandomAfter, masterPoolFactory, slavePoolFactory, lbFactory, initReadOnly);
+      return new JedisClusterExecutor(defaultReadMode, discoveryHostPorts, maxRedirections,
+          maxRetries, tryRandomAfter, masterPoolFactory, slavePoolFactory,
+          slavePools -> lbFactory.apply(defaultReadMode, slavePools), initReadOnly);
     }
 
     public ReadMode getReadMode() {
-      return readMode;
+      return defaultReadMode;
     }
 
-    public Builder withReadMode(final ReadMode readMode) {
-      this.readMode = readMode;
+    public Builder withReadMode(final ReadMode defaultReadMode) {
+      this.defaultReadMode = defaultReadMode;
       return this;
     }
 
@@ -726,11 +730,12 @@ public final class JedisClusterExecutor implements Closeable {
       return this;
     }
 
-    public Function<JedisPool[], LoadBalancedPools> getLbFactory() {
+    public BiFunction<ReadMode, JedisPool[], LoadBalancedPools> getLbFactory() {
       return lbFactory;
     }
 
-    public Builder withLbFactory(final Function<JedisPool[], LoadBalancedPools> lbFactory) {
+    public Builder withLbFactory(
+        final BiFunction<ReadMode, JedisPool[], LoadBalancedPools> lbFactory) {
       this.lbFactory = lbFactory;
       return this;
     }
