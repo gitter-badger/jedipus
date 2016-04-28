@@ -4,6 +4,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -31,6 +32,50 @@ public final class JedisClusterExecutor implements Closeable {
   private static final int DEFAULT_MAX_REDIRECTIONS = 5;
   private static final int DEFAULT_MAX_RETRIES = 2;
   private static final int DEFAULT_TRY_RANDOM_AFTER = 1;
+
+  private static final BiFunction<ReadMode, JedisPool[], LoadBalancedPools> DEFAULT_LB_FACTORIES =
+      (defaultReadMode, slavePools) -> {
+
+        if (slavePools.length == 0) {
+          // will fall back to master pool
+          return rm -> null;
+        }
+
+        switch (defaultReadMode) {
+          case MASTER:
+            // will never reach here.
+            return null;
+          case SLAVES:
+
+            if (slavePools.length == 1) {
+              return rm -> slavePools[0];
+            }
+
+            return new RoundRobinPools(slavePools);
+          case MIXED_SLAVES:
+
+            if (slavePools.length == 1) {
+              return rm -> {
+                switch (rm) {
+                  case MASTER:
+                    // will fall back to master pool
+                    return null;
+                  case MIXED:
+                    // ignore request to lb across master. Use MIXED as default instead.
+                  case MIXED_SLAVES:
+                  case SLAVES:
+                  default:
+                    return slavePools[0];
+                }
+              };
+            }
+
+            return new RoundRobinPools(slavePools);
+          case MIXED:
+          default:
+            return new RoundRobinPools(slavePools);
+        }
+      };
 
   private final int maxRedirections;
   private final int maxRetries;
@@ -584,7 +629,7 @@ public final class JedisClusterExecutor implements Closeable {
       }
 
       if (lbFactory == null) {
-        lbFactory = slavePools -> new RoundRobinPools(slavePools);
+        lbFactory = slavePools -> DEFAULT_LB_FACTORIES.apply(readMode, slavePools);
       }
 
       return new JedisClusterExecutor(readMode, discoveryHostPorts, maxRedirections, maxRetries,
