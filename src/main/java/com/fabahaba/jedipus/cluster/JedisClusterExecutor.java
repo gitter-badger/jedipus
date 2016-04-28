@@ -110,7 +110,12 @@ public final class JedisClusterExecutor implements Closeable {
 
   public static Builder startBuilding() {
 
-    return new Builder();
+    return new Builder(null);
+  }
+
+  public static Builder startBuilding(final Collection<HostAndPort> discoveryHostPorts) {
+
+    return new Builder(discoveryHostPorts);
   }
 
   private JedisClusterExecutor(final ReadMode defaultReadMode,
@@ -636,7 +641,10 @@ public final class JedisClusterExecutor implements Closeable {
     private BiFunction<ReadMode, JedisPool[], LoadBalancedPools> lbFactory = DEFAULT_LB_FACTORIES;
     private boolean initReadOnly = true;
 
-    private Builder() {}
+    private Builder(final Collection<HostAndPort> discoveryHostPorts) {
+
+      this.discoveryHostPorts = discoveryHostPorts;
+    }
 
     public JedisClusterExecutor create() {
 

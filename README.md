@@ -25,9 +25,8 @@
 final Collection<HostAndPort> discoveryHostPorts =
         Collections.singleton(new HostAndPort("127.0.0.1", 7000));
 
-try (final JedisClusterExecutor jce =
-  JedisClusterExecutor.startBuilding().withDiscoveryHostPorts(discoveryHostPorts)
-      .withReadMode(ReadMode.MIXED_SLAVES).withInitReadOnly(true).create()) {
+try (final JedisClusterExecutor jce = JedisClusterExecutor.startBuilding(discoveryHostPorts)
+       .withReadMode(ReadMode.MIXED_SLAVES).withInitReadOnly(true).create()) {
 
    // Ping-Pong all masters.
    jce.acceptAllMasters(master -> System.out.format("MASTER@%s:%d %s%n",
