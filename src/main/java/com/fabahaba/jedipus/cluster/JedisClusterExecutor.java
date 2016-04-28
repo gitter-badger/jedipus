@@ -45,8 +45,8 @@ public final class JedisClusterExecutor implements Closeable {
     DEFAULT_POOL_CONFIG.setEvictionPolicyClassName(DefaultEvictionPolicy.class.getName());
 
     DEFAULT_POOL_CONFIG.setTestWhileIdle(true);
-    DEFAULT_POOL_CONFIG.setNumTestsPerEvictionRun(
-        DEFAULT_POOL_CONFIG.getMaxTotal() - DEFAULT_POOL_CONFIG.getMaxIdle());
+    // test all idle
+    DEFAULT_POOL_CONFIG.setNumTestsPerEvictionRun(DEFAULT_POOL_CONFIG.getMaxTotal());
 
     // block forever
     DEFAULT_POOL_CONFIG.setBlockWhenExhausted(true);
