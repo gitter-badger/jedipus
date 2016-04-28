@@ -35,6 +35,7 @@ public final class JedisClusterExecutor implements Closeable {
   private static final int DEFAULT_TRY_RANDOM_AFTER = 1;
 
   private static final GenericObjectPoolConfig DEFAULT_POOL_CONFIG = new GenericObjectPoolConfig();
+
   static {
     DEFAULT_POOL_CONFIG.setMaxIdle(2);
     DEFAULT_POOL_CONFIG.setMaxTotal(GenericObjectPoolConfig.DEFAULT_MAX_TOTAL); // 8
