@@ -5,7 +5,7 @@
 ######Features
 * Execute Jedis Consumer and Function Java 8 Lambas against a Redis Cluster.
 * Use known slot ints for O(1) direct primitive array access to a corresponding JedisPool.
-* Minimal locking is applied using a StampedLock optimistic read when retrieving a JedisPool.  Locking is required to handle concurrent Redis hash slot remapping events.
+* Locking is only applied to threads that are accessing slots that are MOVING or for which a client connection cannot be established triggering a slot cache refresh.
 * Re-uses the work already done on Jedis clients to support pipelining and transactions.  Remember that all keys must share the same hash slot, instead of validating this, Jedipus trusts the user in order to avoid unnecessary overhead.
 * Minimal dependency tree (Jedipus -> Jedis -> org.apache.commons:commons-pool2).
 * Utilities to manage and execute Lua scripts.
@@ -18,7 +18,7 @@
 
 * MASTER: Only pools to master nodes are maintained.  
 * SLAVES: Only pools to slave nodes are maintained. Calls are load balanced across slave pools.
-* MIXED_SLAVES: Pools are managed for both masters and slave nodes.  Calls are only load balanced across slave pools. Individual calls can be overridden with `ReadMode.MASTER` or `ReadMode.SLAVES`.  When no slave pools are available the master pool is used.
+* MIXED_SLAVES: Pools are managed for both masters and slave nodes.  Calls are only load balanced across slave pools. Individual calls can be overridden with `ReadMode.MASTER` or `ReadMode.MIXED`.  When no slave pools are available the master pool is used.
 * MIXED: Pools are managed for both masters and slave nodes.  Calls are load balanced across both master and slave pools. Individual calls can be overridden with `ReadMode.MASTER` or `ReadMode.SLAVES`.  When overriding with `ReadMode.SLAVES` and no slave pools are available the master pool is used.
 
 #####Basic Usage Example
