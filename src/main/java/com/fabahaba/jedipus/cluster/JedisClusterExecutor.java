@@ -125,13 +125,14 @@ public final class JedisClusterExecutor implements AutoCloseable {
   private JedisClusterExecutor(final ReadMode defaultReadMode,
       final Collection<HostAndPort> discoveryHostPorts, final int maxRedirections,
       final int maxRetries, final int tryRandomAfter, final HostPortRetryDelay hostPortRetryDelay,
-      final Function<HostAndPort, JedisPool> masterPoolFactory,
+      final boolean optimisticReads, final Function<HostAndPort, JedisPool> masterPoolFactory,
       final Function<HostAndPort, JedisPool> slavePoolFactory,
       final Function<HostAndPort, Jedis> jedisAskFactory,
       final Function<JedisPool[], LoadBalancedPools> lbFactory, final boolean initReadOnly) {
 
-    this.connHandler = new JedisClusterConnHandler(defaultReadMode, discoveryHostPorts,
-        masterPoolFactory, slavePoolFactory, jedisAskFactory, lbFactory, initReadOnly);
+    this.connHandler =
+        new JedisClusterConnHandler(defaultReadMode, optimisticReads, discoveryHostPorts,
+            masterPoolFactory, slavePoolFactory, jedisAskFactory, lbFactory, initReadOnly);
 
     this.maxRedirections = maxRedirections;
     this.maxRetries = maxRetries;
@@ -670,6 +671,9 @@ public final class JedisClusterExecutor implements AutoCloseable {
     private Function<HostAndPort, Jedis> jedisAskFactory = DEFAULT_JEDIS_ASK_FACTORY;
     private BiFunction<ReadMode, JedisPool[], LoadBalancedPools> lbFactory = DEFAULT_LB_FACTORIES;
     private boolean initReadOnly = true;
+    // If true, access to slot pool cache will not lock when retreiving a pool/client during a slot
+    // re-configuration.
+    private boolean optimisticReads = true;
 
     private Builder(final Collection<HostAndPort> discoveryHostPorts) {
 
@@ -679,9 +683,9 @@ public final class JedisClusterExecutor implements AutoCloseable {
     public JedisClusterExecutor create() {
 
       return new JedisClusterExecutor(defaultReadMode, discoveryHostPorts, maxRedirections,
-          maxRetries, tryRandomAfter, hostPortRetryDelay, masterPoolFactory, slavePoolFactory,
-          jedisAskFactory, slavePools -> lbFactory.apply(defaultReadMode, slavePools),
-          initReadOnly);
+          maxRetries, tryRandomAfter, hostPortRetryDelay, optimisticReads, masterPoolFactory,
+          slavePoolFactory, jedisAskFactory,
+          slavePools -> lbFactory.apply(defaultReadMode, slavePools), initReadOnly);
     }
 
     public ReadMode getReadMode() {
@@ -753,6 +757,15 @@ public final class JedisClusterExecutor implements AutoCloseable {
 
     public Builder withHostPortRetryDelay(final HostPortRetryDelay hostPortRetryDelay) {
       this.hostPortRetryDelay = hostPortRetryDelay;
+      return this;
+    }
+
+    public boolean isOptimisticReads() {
+      return optimisticReads;
+    }
+
+    public Builder withOptimisticReads(final boolean optimisticReads) {
+      this.optimisticReads = optimisticReads;
       return this;
     }
 
