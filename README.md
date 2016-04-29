@@ -11,6 +11,7 @@
 * Utilities to manage and execute Lua scripts.
 * Optional user supplied master and slave HostAndPort -> JedisPool factories.  Useful for client side ip/port mapping or dynamic pool sizes.
 * Load balance read-only requests across pools.  Optional user supplied slave JedisPool[] -> LoadBalancedPools factories.  By default, a round robin strategy is used.
+* Configurable retry delay per HostAndPort for JedisConnectionException's.
 
 ######Read Modes
 >Read modes control how pools to master and slave nodes are managed.

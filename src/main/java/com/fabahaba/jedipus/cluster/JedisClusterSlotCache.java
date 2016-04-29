@@ -19,6 +19,7 @@ import com.fabahaba.jedipus.RESP;
 import com.fabahaba.jedipus.cluster.JedisClusterExecutor.ReadMode;
 
 import redis.clients.jedis.BinaryJedisCluster;
+import redis.clients.jedis.Client;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
@@ -136,7 +137,7 @@ final class JedisClusterSlotCache implements AutoCloseable {
             case MIXED:
             case MASTER:
               final HostAndPort masterHostPort =
-                  generateHostAndPort((List<Object>) slotInfo.get(MASTER_NODE_INDEX));
+                  createHostPort((List<Object>) slotInfo.get(MASTER_NODE_INDEX));
               allDiscoveryHostPorts.add(masterHostPort);
 
               final JedisPool masterPool = masterPoolFactory.apply(masterHostPort);
@@ -155,7 +156,7 @@ final class JedisClusterSlotCache implements AutoCloseable {
           for (int i = MASTER_NODE_INDEX + 1, slotInfoSize =
               slotInfo.size(); i < slotInfoSize; i++) {
 
-            final HostAndPort slaveHostPort = generateHostAndPort((List<Object>) slotInfo.get(i));
+            final HostAndPort slaveHostPort = createHostPort((List<Object>) slotInfo.get(i));
             allDiscoveryHostPorts.add(slaveHostPort);
 
             switch (defaultReadMode) {
@@ -225,7 +226,7 @@ final class JedisClusterSlotCache implements AutoCloseable {
           case MIXED:
           case MASTER:
             final HostAndPort masterHostPort =
-                generateHostAndPort((List<Object>) slotInfo.get(MASTER_NODE_INDEX));
+                createHostPort((List<Object>) slotInfo.get(MASTER_NODE_INDEX));
             discoveryHostPorts.add(masterHostPort);
 
             final JedisPool masterPool = masterPoolFactory.apply(masterHostPort);
@@ -243,7 +244,7 @@ final class JedisClusterSlotCache implements AutoCloseable {
 
         for (int i = MASTER_NODE_INDEX + 1, slotInfoSize = slotInfo.size(); i < slotInfoSize; i++) {
 
-          final HostAndPort slaveHostPort = generateHostAndPort((List<Object>) slotInfo.get(i));
+          final HostAndPort slaveHostPort = createHostPort((List<Object>) slotInfo.get(i));
           discoveryHostPorts.add(slaveHostPort);
 
           switch (defaultReadMode) {
@@ -301,12 +302,19 @@ final class JedisClusterSlotCache implements AutoCloseable {
     }
   }
 
-  private static HostAndPort generateHostAndPort(final List<Object> hostInfos) {
+  private static HostAndPort createHostPort(final List<Object> hostInfos) {
 
     final String ip = RESP.toString(hostInfos.get(0));
 
     return new HostAndPort(ip.equals("127.0.0.1") || ip.equals("::1") ? "localhost" : ip,
         ((Long) hostInfos.get(1)).intValue());
+  }
+
+  static HostAndPort createHostPort(final Jedis jedis) {
+
+    final Client client = jedis.getClient();
+
+    return new HostAndPort(client.getHost(), client.getPort());
   }
 
   Jedis getAskJedis(final HostAndPort askHostPort) {
