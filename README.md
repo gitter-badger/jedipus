@@ -48,9 +48,9 @@ try (final JedisClusterExecutor jce = JedisClusterExecutor.startBuilding(discove
    jce.acceptPipelinedTransaction(ReadMode.MASTER, slot, pipeline -> {
 
      pipeline.set(hashTaggedKey, "value");
-     pipeline.zadd(fooKey, 1, "barowitch");
-     pipeline.zadd(fooKey, 0, "barinsky");
-     pipeline.zadd(fooKey, 0, "barikoviev");
+     pipeline.zadd(fooKey, -1, "barowitch");
+     pipeline.zadd(fooKey, .37, "barinsky");
+     pipeline.zadd(fooKey, 42, "barikoviev");
 
      results.add(pipeline.get(hashTaggedKey));
      results.add(pipeline.zrangeWithScores(fooKey, 0, -1));
@@ -65,7 +65,7 @@ try (final JedisClusterExecutor jce = JedisClusterExecutor.startBuilding(discove
        .map(tuple -> String.format("%s (%s)", tuple.getElement(), tuple.getScore()))
        .collect(Collectors.joining(", "));
 
-   // '{HT}:foo': [barikoviev (0.0), barinsky (0.0), barowitch (1.0)]
+   // '{HT}:foo': [barowitch (-1.0), barinsky (0.37), barikoviev (42.0)]
    System.out.format("%n'%s': [%s]%n", fooKey, values);
 
    // Read from load balanced slave.
@@ -77,8 +77,6 @@ try (final JedisClusterExecutor jce = JedisClusterExecutor.startBuilding(discove
    final long numRemoved =
        jce.applyJedis(ReadMode.MASTER, slot, jedis -> jedis.del(hashTaggedKey, fooKey));
    System.out.format("%nRemoved %d keys.%n", numRemoved);
-} catch (final IOException e) {
-   throw new UncheckedIOException(e);
 }
 ```
 
@@ -101,8 +99,8 @@ public final class RedisLock {
     final Collection<HostAndPort> discoveryHostPorts =
         Collections.singleton(new HostAndPort("127.0.0.1", 7000));
 
-    try (final JedisClusterExecutor jce = JedisClusterExecutor.startBuilding()
-      .withDiscoveryHostPorts(discoveryHostPorts).create()) {
+    try (final JedisClusterExecutor jce = JedisClusterExecutor
+            .startBuilding(discoveryHostPorts).create()) {
 
       LuaScript.loadMissingScripts(jce, TRY_ACQUIRE_LOCK, TRY_RELEASE_LOCK);
 
@@ -129,8 +127,6 @@ public final class RedisLock {
       } else {
         System.out.format("Lock was no longer owned by '%s'.%n", RESP.toString(ownerId));
       }
-    } catch (final IOException e) {
-      throw new UncheckedIOException(e);
     }
   }
 ```

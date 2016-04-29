@@ -1,7 +1,5 @@
 package com.fabahaba.jedipus.cluster;
 
-import java.io.Closeable;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.BiFunction;
@@ -24,7 +22,7 @@ import redis.clients.jedis.exceptions.JedisMovedDataException;
 import redis.clients.jedis.exceptions.JedisRedirectionException;
 import redis.clients.util.JedisClusterCRC16;
 
-public final class JedisClusterExecutor implements Closeable {
+public final class JedisClusterExecutor implements AutoCloseable {
 
   public static enum ReadMode {
     MASTER, SLAVES, MIXED, MIXED_SLAVES;
@@ -621,7 +619,7 @@ public final class JedisClusterExecutor implements Closeable {
   }
 
   @Override
-  public void close() throws IOException {
+  public void close() {
 
     connHandler.close();
   }

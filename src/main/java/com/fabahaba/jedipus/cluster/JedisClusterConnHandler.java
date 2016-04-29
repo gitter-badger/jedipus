@@ -1,7 +1,5 @@
 package com.fabahaba.jedipus.cluster;
 
-import java.io.Closeable;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.Function;
@@ -14,7 +12,7 @@ import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.exceptions.JedisConnectionException;
 import redis.clients.jedis.exceptions.JedisException;
 
-class JedisClusterConnHandler implements Closeable {
+class JedisClusterConnHandler implements AutoCloseable {
 
   private final JedisClusterSlotCache cache;
 
@@ -164,7 +162,7 @@ class JedisClusterConnHandler implements Closeable {
   }
 
   @Override
-  public void close() throws IOException {
+  public void close() {
 
     cache.close();
   }
