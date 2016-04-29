@@ -56,6 +56,11 @@ public final class JedisClusterExecutor implements AutoCloseable {
           Protocol.DEFAULT_TIMEOUT, Protocol.DEFAULT_TIMEOUT, null, Protocol.DEFAULT_DATABASE,
           "jedipus");
 
+
+  private static final Function<HostAndPort, Jedis> DEFAULT_JEDIS_ASK_FACTORY =
+      hostPort -> new Jedis(hostPort.getHost(), hostPort.getPort(), Protocol.DEFAULT_TIMEOUT,
+          Protocol.DEFAULT_TIMEOUT);
+
   private static final BiFunction<ReadMode, JedisPool[], LoadBalancedPools> DEFAULT_LB_FACTORIES =
       (defaultReadMode, slavePools) -> {
 
@@ -121,10 +126,11 @@ public final class JedisClusterExecutor implements AutoCloseable {
       final int maxRetries, final int tryRandomAfter,
       final Function<HostAndPort, JedisPool> masterPoolFactory,
       final Function<HostAndPort, JedisPool> slavePoolFactory,
+      final Function<HostAndPort, Jedis> jedisAskFactory,
       final Function<JedisPool[], LoadBalancedPools> lbFactory, final boolean initReadOnly) {
 
     this.connHandler = new JedisClusterConnHandler(defaultReadMode, discoveryHostPorts,
-        masterPoolFactory, slavePoolFactory, lbFactory, initReadOnly);
+        masterPoolFactory, slavePoolFactory, jedisAskFactory, lbFactory, initReadOnly);
 
     this.maxRedirections = maxRedirections;
     this.maxRetries = maxRetries;
@@ -636,6 +642,8 @@ public final class JedisClusterExecutor implements AutoCloseable {
     private GenericObjectPoolConfig poolConfig = DEFAULT_POOL_CONFIG;
     private Function<HostAndPort, JedisPool> masterPoolFactory = DEFAULT_POOL_FACTORY;
     private Function<HostAndPort, JedisPool> slavePoolFactory = DEFAULT_POOL_FACTORY;
+    // Only used if a pool does not already exist.
+    private Function<HostAndPort, Jedis> jedisAskFactory = DEFAULT_JEDIS_ASK_FACTORY;
     private BiFunction<ReadMode, JedisPool[], LoadBalancedPools> lbFactory = DEFAULT_LB_FACTORIES;
     private boolean initReadOnly = true;
 
@@ -647,7 +655,7 @@ public final class JedisClusterExecutor implements AutoCloseable {
     public JedisClusterExecutor create() {
 
       return new JedisClusterExecutor(defaultReadMode, discoveryHostPorts, maxRedirections,
-          maxRetries, tryRandomAfter, masterPoolFactory, slavePoolFactory,
+          maxRetries, tryRandomAfter, masterPoolFactory, slavePoolFactory, jedisAskFactory,
           slavePools -> lbFactory.apply(defaultReadMode, slavePools), initReadOnly);
     }
 
@@ -738,6 +746,15 @@ public final class JedisClusterExecutor implements AutoCloseable {
 
     public Builder withSlavePoolFactory(final Function<HostAndPort, JedisPool> slavePoolFactory) {
       this.slavePoolFactory = slavePoolFactory;
+      return this;
+    }
+
+    public Function<HostAndPort, Jedis> getJedisAskFactory() {
+      return jedisAskFactory;
+    }
+
+    public Builder withedisAskFactory(final Function<HostAndPort, Jedis> jedisAskFactory) {
+      this.jedisAskFactory = jedisAskFactory;
       return this;
     }
 

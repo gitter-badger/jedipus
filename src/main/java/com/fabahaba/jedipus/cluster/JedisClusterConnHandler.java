@@ -20,10 +20,11 @@ class JedisClusterConnHandler implements AutoCloseable {
       final Collection<HostAndPort> discoveryHostPorts,
       final Function<HostAndPort, JedisPool> masterPoolFactory,
       final Function<HostAndPort, JedisPool> slavePoolFactory,
+      final Function<HostAndPort, Jedis> jedisAskFactory,
       final Function<JedisPool[], LoadBalancedPools> lbFactory, final boolean initReadOnly) {
 
     this.cache = JedisClusterSlotCache.create(defaultReadMode, discoveryHostPorts,
-        masterPoolFactory, slavePoolFactory, lbFactory, initReadOnly);
+        masterPoolFactory, slavePoolFactory, jedisAskFactory, lbFactory, initReadOnly);
   }
 
   ReadMode getDefaultReadMode() {
