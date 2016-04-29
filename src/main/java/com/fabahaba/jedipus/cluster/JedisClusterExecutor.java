@@ -52,10 +52,9 @@ public final class JedisClusterExecutor implements AutoCloseable {
   }
 
   private static final Function<HostAndPort, JedisPool> DEFAULT_POOL_FACTORY =
-      node -> new JedisPool(DEFAULT_POOL_CONFIG, node.getHost(), node.getPort(),
+      hostPort -> new JedisPool(DEFAULT_POOL_CONFIG, hostPort.getHost(), hostPort.getPort(),
           Protocol.DEFAULT_TIMEOUT, Protocol.DEFAULT_TIMEOUT, null, Protocol.DEFAULT_DATABASE,
-          "jedipus");
-
+          null);
 
   private static final Function<HostAndPort, Jedis> DEFAULT_JEDIS_ASK_FACTORY =
       hostPort -> new Jedis(hostPort.getHost(), hostPort.getPort(), Protocol.DEFAULT_TIMEOUT,
@@ -753,7 +752,7 @@ public final class JedisClusterExecutor implements AutoCloseable {
       return jedisAskFactory;
     }
 
-    public Builder withedisAskFactory(final Function<HostAndPort, Jedis> jedisAskFactory) {
+    public Builder withJedisAskFactory(final Function<HostAndPort, Jedis> jedisAskFactory) {
       this.jedisAskFactory = jedisAskFactory;
       return this;
     }
